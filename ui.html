@@ -1,0 +1,2158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MultiT</title>
+<style>
+:root {
+  --bg: #040604; --bg2: #080c07; --panel: #0b110a; --panel2: #10180e; --line: #1a2716; --line2: #27391f;
+  --lime: #b6ff3b; --lime2: #8ee000; --green: #3ddc6a; --text: #dbf5cc; --muted: #6c8862; --dim: #3f5537;
+  --red: #ff5a52; --amber: #ffc93c;
+  --glow: 0 0 18px rgba(182,255,59,.35);
+  --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 var(--ui); overflow: hidden; }
+body {
+  display: grid; grid-template-columns: 236px 1fr; grid-template-rows: minmax(0, 1fr); height: 100vh;  /* never taller than the window */
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(182,255,59,.07), transparent 60%),
+    radial-gradient(700px 500px at -10% 110%, rgba(61,220,106,.06), transparent 60%),
+    linear-gradient(rgba(182,255,59,.025) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(90deg, rgba(182,255,59,.025) 1px, transparent 1px) 0 0 / 34px 34px,
+    var(--bg);
+}
+body::after { /* scanlines */
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 99;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); mix-blend-mode: multiply;
+}
+::selection { background: var(--lime); color: #000; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: #3d5a30; border-radius: 10px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--lime2); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- sidebar ---------- */
+aside { background: linear-gradient(180deg, rgba(11,17,10,.92), rgba(5,8,5,.96)); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 22px 14px 16px; min-height: 0; overflow: hidden; }
+.logo { font: 800 28px/1 var(--mono); letter-spacing: -.02em; padding: 0 10px 4px; user-select: none; }
+.logo b { color: var(--lime); text-shadow: var(--glow); }
+.logo .caret { display: inline-block; width: 12px; height: 24px; background: var(--lime); margin-left: 4px; vertical-align: -3px; box-shadow: var(--glow); animation: blink 1.05s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.tag { font: 11px var(--mono); color: var(--muted); padding: 0 10px 22px; letter-spacing: .12em; text-transform: uppercase; }
+nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; flex: 1; margin: 0 -14px; padding: 0 14px; }
+nav::-webkit-scrollbar { width: 8px; }
+nav::-webkit-scrollbar-thumb { background: var(--lime2); border: 2px solid #070b06; border-radius: 8px; box-shadow: var(--glow); }
+nav::-webkit-scrollbar-thumb:hover { background: var(--lime); }
+nav::-webkit-scrollbar-track { background: rgba(182,255,59,.05); border-radius: 8px; }
+nav a { display: flex; align-items: center; gap: 12px; padding: 7px 12px; flex: none; border-radius: 10px; color: var(--muted); text-decoration: none; cursor: pointer; font: 13.5px var(--ui); position: relative; transition: .15s; border: 1px solid transparent; }
+nav a svg { width: 18px; height: 18px; flex: none; }
+nav a:hover { color: var(--text); background: rgba(182,255,59,.04); }
+nav a.on { color: var(--lime); background: linear-gradient(90deg, rgba(182,255,59,.12), rgba(182,255,59,.02)); border-color: rgba(182,255,59,.18); }
+nav a.on::before { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--lime); box-shadow: var(--glow); }
+nav .sep { font: 10px var(--mono); color: var(--dim); letter-spacing: .16em; padding: 12px 12px 3px; flex: none; }
+.side-foot { margin-top: 10px; border-top: 1px solid var(--line); padding: 14px 8px 0; display: grid; gap: 6px; font: 11.5px var(--mono); color: var(--muted); }
+.side-foot > div { display: grid; gap: 6px; }
+.side-foot > div > div { display: flex; justify-content: space-between; gap: 8px; }
+
+/* ---------- main ---------- */
+main { display: grid; grid-template-rows: 1fr 6px var(--term-h, 34%); min-width: 0; min-height: 0; }
+.pages { overflow: auto; padding: 30px 36px 26px; min-height: 0; }
+.page { display: none; max-width: 1180px; animation: rise .25s ease; }
+.page.on { display: block; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+h1 { margin: 0; font: 700 26px/1.2 var(--mono); letter-spacing: -.01em; }
+h1 span { color: var(--lime); text-shadow: var(--glow); }
+.sub { color: var(--muted); margin: 6px 0 24px; max-width: 720px; }
+.grid2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
+.card { background: linear-gradient(180deg, rgba(16,24,14,.85), rgba(10,15,9,.85)); border: 1px solid var(--line); border-radius: 16px; padding: 20px; position: relative; backdrop-filter: blur(4px); }
+.card + .card { margin-top: 18px; }
+.card h3 { margin: 0 0 14px; font: 600 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.card h3::before { content: ""; width: 7px; height: 7px; background: var(--lime); border-radius: 2px; box-shadow: var(--glow); }
+.card h3 .r { margin-left: auto; }
+
+label.f { display: block; font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+label.f:first-child { margin-top: 0; }
+.row { display: flex; gap: 10px; align-items: center; }
+.row > .grow { flex: 1; min-width: 0; }
+input[type=text], input[type=password], input[type=number], select {
+  width: 100%; background: #060a05; border: 1px solid var(--line2); color: var(--text); border-radius: 10px;
+  padding: 10px 12px; font: 13px var(--mono); outline: none; transition: .15s;
+}
+input::placeholder { color: var(--dim); }
+input:focus, select:focus { border-color: var(--lime); box-shadow: 0 0 0 3px rgba(182,255,59,.12), var(--glow); }
+select { appearance: none; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--lime) 50%), linear-gradient(135deg, var(--lime) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+select option { background: #0b110a; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; padding: 10px 16px; font: 700 12.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; border: 1px solid var(--line2); background: rgba(182,255,59,.03); color: var(--lime); transition: .15s; white-space: nowrap; user-select: none; }
+.btn:hover { border-color: var(--lime); background: rgba(182,255,59,.08); box-shadow: var(--glow); }
+.btn:active { transform: translateY(1px); }
+.btn.p { background: var(--lime); color: #071003; border-color: var(--lime); box-shadow: 0 0 0 rgba(0,0,0,0); }
+.btn.p:hover { background: #c9ff63; box-shadow: 0 0 28px rgba(182,255,59,.5); }
+.btn.big { padding: 15px 26px; font-size: 14px; border-radius: 12px; }
+.btn.d { color: var(--red); border-color: rgba(255,90,82,.3); background: rgba(255,90,82,.04); }
+.btn.d:hover { border-color: var(--red); box-shadow: 0 0 18px rgba(255,90,82,.3); background: rgba(255,90,82,.08); }
+.btn.s { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+.btn svg { width: 15px; height: 15px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
+/* toggle */
+.tg { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; padding: 6px 0; color: var(--text); }
+.tg input { display: none; }
+.tg i { width: 38px; height: 21px; border-radius: 20px; background: #070b06; border: 1px solid var(--line2); position: relative; transition: .2s; flex: none; }
+.tg i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: var(--dim); transition: .2s; }
+.tg input:checked + i { border-color: var(--lime); background: rgba(182,255,59,.15); box-shadow: var(--glow); }
+.tg input:checked + i::after { left: 20px; background: var(--lime); }
+.tg small { color: var(--muted); display: block; font-size: 12px; }
+
+/* segmented */
+.seg { display: inline-flex; background: #060a05; border: 1px solid var(--line2); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { background: none; border: 0; color: var(--muted); font: 600 12px var(--mono); padding: 7px 14px; border-radius: 7px; cursor: pointer; }
+.seg button.on { background: var(--lime); color: #071003; box-shadow: var(--glow); }
+
+/* range */
+input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 6px; background: linear-gradient(90deg, var(--lime) var(--pct, 50%), #142012 var(--pct, 50%)); outline: none; margin: 10px 0 4px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #071003; border: 3px solid var(--lime); box-shadow: var(--glow); cursor: pointer; }
+.rv { font: 700 13px var(--mono); color: var(--lime); }
+.rangebox { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+/* build drop zone */
+.zone { border: 1.5px dashed var(--line2); border-radius: 16px; padding: 30px; text-align: center; transition: .2s; background: radial-gradient(400px 160px at 50% 0%, rgba(182,255,59,.06), transparent); }
+.zone:hover { border-color: var(--lime2); }
+.zone.has { border-style: solid; border-color: rgba(182,255,59,.35); text-align: left; padding: 20px; }
+.zone .big-ic { width: 46px; height: 46px; color: var(--lime); filter: drop-shadow(0 0 10px rgba(182,255,59,.5)); }
+.zone p { color: var(--muted); margin: 8px 0 18px; }
+.det { display: flex; gap: 18px; align-items: center; }
+.lang { width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; font: 800 20px var(--mono); color: #071003; background: var(--lime); box-shadow: 0 0 30px rgba(182,255,59,.45); flex: none; }
+.det .meta { min-width: 0; flex: 1; }
+.det .meta b { font: 700 18px var(--mono); color: var(--lime); text-transform: capitalize; }
+.det .meta div { color: var(--muted); font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 600 11px var(--mono); padding: 4px 9px; border-radius: 20px; border: 1px solid var(--line2); color: var(--muted); }
+.chip.on { color: var(--lime); border-color: rgba(182,255,59,.4); }
+button.chip { background: none; cursor: pointer; }
+button.chip.on { background: rgba(182,255,59,.1); }
+
+/* VM list */
+.vm { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(4,6,4,.5); }
+.vm + .vm { margin-top: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex: none; }
+.dot.on { background: var(--lime); box-shadow: 0 0 0 0 rgba(182,255,59,.6); animation: pulse 1.6s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(182,255,59,0); } 100% { box-shadow: 0 0 0 0 rgba(182,255,59,0); } }
+.vm .n { flex: 1; min-width: 0; }
+.vm .n b { display: block; font: 600 13.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vm .n small { color: var(--muted); font: 11px var(--mono); }
+.vm .ops { display: flex; gap: 5px; opacity: .75; transition: .15s; }
+.vm:hover .ops { opacity: 1; }
+.empty { color: var(--dim); font: 12.5px var(--mono); text-align: center; padding: 26px 0; }
+
+/* ISO tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 14px; }
+.tile { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: linear-gradient(180deg, rgba(16,24,14,.8), rgba(8,12,7,.8)); transition: .18s; display: flex; flex-direction: column; gap: 12px; }
+.tile:hover { border-color: rgba(182,255,59,.45); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.4), 0 0 22px rgba(182,255,59,.12); }
+.tile .top { display: flex; gap: 12px; align-items: center; }
+.mono { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; font: 800 14px var(--mono); color: var(--lime); border: 1px solid rgba(182,255,59,.35); background: rgba(182,255,59,.07); flex: none; }
+.tile:hover .mono { background: var(--lime); color: #071003; box-shadow: var(--glow); }
+.tile b { font: 700 14px var(--mono); display: block; }
+.tile small { color: var(--muted); font-size: 12px; line-height: 1.3; display: block; }
+.tile .ops { display: flex; gap: 6px; margin-top: auto; }
+.tile .ops .btn { flex: 1; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.toolbar input { max-width: 300px; }
+
+/* free up space */
+.drives { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.drive { display: flex; align-items: center; gap: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; background: linear-gradient(180deg, rgba(16,24,14,.85), rgba(10,15,9,.85)); }
+.drive .dl { font: 800 22px var(--mono); color: var(--lime); text-shadow: var(--glow); }
+.drive .grow { flex: 1; }
+.drive small { color: var(--muted); font: 12px var(--mono); }
+.drive small b { color: var(--text); }
+.drive .pct { font: 700 14px var(--mono); color: var(--muted); }
+.bar { height: 8px; border-radius: 8px; background: #0d150b; overflow: hidden; margin-bottom: 7px; border: 1px solid var(--line); }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--lime)); box-shadow: var(--glow); border-radius: 8px; transition: width .6s ease; }
+.bar i.hot { background: linear-gradient(90deg, var(--amber), var(--red)); }
+.jg { font: 600 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin: 16px 0 6px; }
+.jg:first-child { margin-top: 0; }
+.jrow { display: flex; align-items: center; gap: 14px; padding: 9px 10px; border-radius: 10px; cursor: pointer; transition: .12s; }
+.jrow:hover { background: rgba(182,255,59,.04); }
+.jrow .tg { padding: 0; }
+.jl { flex: 1; min-width: 0; }
+.jl .chip { margin-left: 6px; padding: 1px 7px; font-size: 10px; }
+.chip.warn { color: var(--amber); border-color: rgba(255,201,60,.35); }
+.jb { display: block; height: 3px; border-radius: 3px; background: #0d150b; margin-top: 6px; overflow: hidden; }
+.jb i { display: block; height: 100%; background: var(--lime2); border-radius: 3px; }
+.js { font: 600 13px var(--mono); color: var(--muted); min-width: 84px; text-align: right; }
+.js.big { color: var(--lime); text-shadow: var(--glow); }
+.cleanbar { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.cleanbar small { display: block; color: var(--muted); font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.cleanbar b { font: 800 30px var(--mono); color: var(--lime); text-shadow: var(--glow); }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line2); border-top-color: var(--lime); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-left: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* disk map */
+.vizcta { display: flex; align-items: center; gap: 18px; padding: 16px 20px; margin-bottom: 18px; border-radius: 16px; cursor: pointer; transition: .18s;
+  border: 1px solid rgba(182,255,59,.35); background: linear-gradient(100deg, rgba(182,255,59,.10), rgba(16,24,14,.85) 60%); }
+.vizcta:hover { box-shadow: 0 0 30px rgba(182,255,59,.22); border-color: var(--lime); }
+.vizcta > div:nth-child(2) { flex: 1; }
+.vizcta b { font: 700 16px var(--mono); color: var(--lime); display: block; }
+.vizcta small { color: var(--muted); }
+.vizcta-art { width: 58px; height: 44px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; flex: none; }
+.vizcta-art i { border-radius: 3px; box-shadow: inset 0 0 8px rgba(0,0,0,.45); }
+#p-viz { max-width: none; }
+.vizbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.vizbar h1 { font-size: 22px; margin-right: 6px; }
+.vizbar select { width: auto; min-width: 170px; }
+.vizbar .tg { padding: 0; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font: 12.5px var(--mono); margin-bottom: 10px; min-height: 22px; }
+.crumbs a { color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.crumbs a:hover { color: var(--lime); background: rgba(182,255,59,.08); }
+.crumbs a:last-child { color: var(--lime); }
+.crumbs span { color: var(--dim); }
+.vizbox { position: relative; height: max(320px, calc(100vh - var(--term-h-px, 300px) - 330px)); border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; background: #030503; cursor: crosshair; }
+.vizbox canvas { display: block; }
+#vizhl, #vizdir, #vizsel { position: absolute; pointer-events: none; display: none; }
+#vizhl { border: 2px solid #fff; box-shadow: 0 0 0 1px #000, 0 0 16px rgba(182,255,59,.8); }
+#vizdir { border: 2px dashed var(--lime); background: rgba(182,255,59,.06); }
+#vizsel { border: 2px solid var(--lime); box-shadow: 0 0 0 1px #000, var(--glow); animation: pulseb 1.2s ease-in-out infinite; }
+@keyframes pulseb { 50% { border-color: #fff; } }
+.viztip { position: absolute; pointer-events: none; display: none; max-width: 440px; padding: 10px 12px; border-radius: 10px; background: rgba(4,7,4,.96); border: 1px solid rgba(182,255,59,.4); box-shadow: 0 8px 24px rgba(0,0,0,.6); font: 12px var(--mono); z-index: 3; }
+.viztip b { color: var(--lime); font-size: 13px; display: block; word-break: break-all; }
+.viztip small { color: var(--muted); display: block; word-break: break-all; margin-top: 4px; }
+.viztip .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+.vizload { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(3,5,3,.86); text-align: center; z-index: 4; }
+.vizload b { font: 700 15px var(--mono); color: var(--lime); }
+.vizload small { display: block; color: var(--dim); font: 11px var(--mono); margin-top: 8px; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vizload .spin { width: 16px; height: 16px; }
+.vizload.idle .spin { display: none; }
+.vizstatus { font: 12px var(--mono); color: var(--muted); margin: 10px 0 16px; }
+.vizstatus b { color: var(--lime); }
+.grid3 { display: grid; grid-template-columns: 1.15fr 1fr 1.2fr; gap: 16px; align-items: start; }
+.grid3 .card + .card { margin-top: 0; }
+.lg { display: flex; align-items: center; gap: 10px; padding: 4px 0; font: 12.5px var(--mono); }
+.lg i { width: 12px; height: 12px; border-radius: 3px; flex: none; box-shadow: inset 0 0 4px rgba(0,0,0,.5); }
+.lg span { flex: 1; color: var(--text); }
+.lg em { font-style: normal; color: var(--muted); }
+.lg .bar { flex: 0 0 70px; height: 5px; margin: 0; }
+.tf { display: flex; gap: 10px; align-items: center; padding: 5px 6px; border-radius: 8px; cursor: pointer; font: 12px var(--mono); }
+.tf:hover { background: rgba(182,255,59,.06); }
+.tf i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.tf span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf em { font-style: normal; color: var(--lime); }
+.selname { font: 700 15px var(--mono); color: var(--lime); word-break: break-all; }
+.selpath { font: 11.5px var(--mono); color: var(--muted); word-break: break-all; margin: 6px 0 10px; }
+.selsize { font: 800 26px var(--mono); }
+.selsize small { font: 12px var(--mono); color: var(--muted); margin-left: 8px; }
+
+/* usb encrypt */
+.warnbox { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; margin-bottom: 18px; border: 1px solid rgba(255,201,60,.35); background: rgba(255,201,60,.05); font-size: 13px; color: var(--text); }
+.warnbox > b { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--amber); color: #120c00; font: 800 15px var(--mono); flex: none; }
+.warnbox div b { color: var(--amber); }
+.usbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+.usb { border: 1px solid var(--line); border-radius: 16px; padding: 18px; background: linear-gradient(180deg, rgba(16,24,14,.9), rgba(8,12,7,.9)); display: flex; flex-direction: column; gap: 12px; }
+.usb.locked { border-color: rgba(182,255,59,.5); box-shadow: inset 0 0 40px rgba(182,255,59,.05); }
+.usb .top { display: flex; gap: 14px; align-items: center; }
+.usb .dl { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font: 800 22px var(--mono); border: 1px solid var(--line2); color: var(--muted); position: relative; flex: none; }
+.usb.locked .dl { background: var(--lime); color: #071003; box-shadow: var(--glow); border-color: var(--lime); }
+.usb .dl svg { position: absolute; right: -7px; bottom: -7px; width: 22px; height: 22px; padding: 3px; border-radius: 7px; background: #0b1209; border: 1px solid var(--line2); color: var(--muted); }
+.usb.locked .dl svg { color: var(--lime); border-color: var(--lime); }
+.usb .top b { font: 700 15px var(--mono); display: block; }
+.usb .top small { color: var(--muted); font: 12px var(--mono); }
+.usb .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+.modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0,0,0,.72); backdrop-filter: blur(3px); animation: rise .15s ease; }
+.mbox { width: min(480px, 92vw); padding: 24px; border-radius: 18px; border: 1px solid rgba(182,255,59,.45); background: #080d07; box-shadow: 0 30px 80px rgba(0,0,0,.7), var(--glow); }
+.mbox h2 { margin: 0; font: 700 20px var(--mono); color: var(--lime); }
+.meter { height: 5px; border-radius: 5px; background: #0d150b; margin: 8px 0 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: 5px; transition: .25s; }
+#pwm-go.off { opacity: .35; pointer-events: none; }
+
+/* palette + dashboard */
+.palbtn { display: flex; align-items: center; gap: 8px; margin: -8px 0 14px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line2); color: var(--muted); font: 12.5px var(--mono); cursor: pointer; flex: none; }
+.palbtn:hover { border-color: var(--lime); color: var(--lime); box-shadow: var(--glow); }
+.palbtn svg { width: 15px; height: 15px; }
+.palbtn kbd, .search kbd { margin-left: auto; font: 10.5px var(--mono); color: var(--dim); border: 1px solid var(--line2); border-radius: 5px; padding: 1px 6px; }
+.modal#palette { place-items: start center; padding-top: 12vh; }
+.mbox.pal { width: min(620px, 92vw); padding: 14px; }
+.mbox.pal .search { max-width: none; }
+.mbox.pal .search input { font-size: 15px; padding-top: 13px; padding-bottom: 13px; }
+#pal-list { margin-top: 10px; max-height: 52vh; overflow: auto; }
+.pi { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; cursor: pointer; font-size: 13.5px; }
+.pi svg { width: 17px; height: 17px; color: var(--muted); flex: none; }
+.pi small { margin-left: auto; color: var(--dim); font: 11px var(--mono); }
+.pi.on { background: rgba(182,255,59,.1); color: var(--lime); box-shadow: inset 2px 0 0 var(--lime); }
+.pi.on svg { color: var(--lime); }
+.pi mark { background: none; color: var(--lime); font-weight: 700; }
+.dash { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.tile2 { position: relative; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; cursor: pointer; transition: .16s; min-height: 128px;
+  background: linear-gradient(180deg, rgba(16,24,14,.9), rgba(8,12,7,.9)); display: flex; flex-direction: column; gap: 4px; }
+.tile2:hover { border-color: rgba(182,255,59,.5); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.4), 0 0 22px rgba(182,255,59,.12); }
+.tile2 small { font: 600 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.tile2 small svg { width: 15px; height: 15px; }
+.tile2 b { font: 800 26px var(--mono); color: var(--lime); text-shadow: var(--glow); margin-top: 4px; }
+.tile2 b.calm { color: var(--text); text-shadow: none; }
+.tile2 em { font: normal 12px var(--mono); color: var(--muted); }
+.tile2 .bar { margin-top: auto; }
+/* models / servers */
+.mrow { display: grid; grid-template-columns: 1fr 120px 90px auto; gap: 12px; align-items: center; padding: 8px; border-radius: 8px; font: 12.5px var(--mono); }
+.mrow:hover { background: rgba(182,255,59,.04); }
+.mrow .mn { min-width: 0; }
+.mrow .mn b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mrow .mn small { color: var(--dim); }
+.mrow .ms { text-align: right; color: var(--lime); }
+.mrow .ops { display: flex; gap: 5px; justify-content: flex-end; }
+.srv .stats { display: flex; gap: 14px; font: 12px var(--mono); color: var(--muted); flex-wrap: wrap; }
+.srv .stats b { color: var(--text); font-weight: 600; }
+.srv.sel { border-color: var(--lime); }
+#sv-log, #vi-info { white-space: pre-wrap; font-size: 11.5px; }
+
+/* server creator */
+.plats { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.plat { position: relative; border: 1px solid var(--line); border-radius: 18px; padding: 20px; cursor: pointer; transition: .18s; overflow: hidden;
+  background: linear-gradient(160deg, rgba(20,30,17,.95), rgba(8,12,7,.95)); display: flex; flex-direction: column; gap: 10px; min-height: 170px; }
+.plat::after { content: ""; position: absolute; right: -40px; top: -40px; width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(var(--glowc, rgba(182,255,59,.18)), transparent 70%); }
+.plat:hover { transform: translateY(-3px); border-color: rgba(182,255,59,.5); box-shadow: 0 14px 34px rgba(0,0,0,.45), 0 0 26px rgba(182,255,59,.14); }
+.plat.on { border-color: var(--lime); box-shadow: 0 0 0 1px var(--lime), 0 0 34px rgba(182,255,59,.25); }
+.plat .pic { width: 54px; height: 54px; border-radius: 15px; display: grid; place-items: center; background: rgba(182,255,59,.08); border: 1px solid rgba(182,255,59,.25); color: var(--lime); }
+.plat.on .pic { background: var(--lime); color: #071003; box-shadow: var(--glow); }
+.plat .pic svg { width: 30px; height: 30px; }
+.plat b { font: 800 18px var(--mono); }
+.plat small { color: var(--muted); font-size: 12.5px; }
+.plat .fwn { margin-top: auto; font: 11px var(--mono); color: var(--dim); }
+.fwchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fwchips button { background: #060a05; border: 1px solid var(--line2); color: var(--text); font: 600 12.5px var(--ui); padding: 9px 14px; border-radius: 10px; cursor: pointer; transition: .14s; }
+.fwchips button:hover { border-color: var(--lime2); }
+.fwchips button.on { background: var(--lime); color: #071003; border-color: var(--lime); box-shadow: var(--glow); }
+
+/* booster / updates / backups */
+.boostcard { display: flex; align-items: center; gap: 24px; padding: 22px 24px; border-radius: 18px; margin-bottom: 18px; border: 1px solid var(--line2);
+  background: linear-gradient(110deg, rgba(16,24,14,.95), rgba(8,12,7,.95)); }
+.boostcard.on { border-color: var(--lime); box-shadow: 0 0 40px rgba(182,255,59,.18), inset 0 0 60px rgba(182,255,59,.06); }
+.boostcard .bolt { width: 70px; height: 70px; border-radius: 20px; display: grid; place-items: center; border: 1px solid var(--line2); color: var(--dim); flex: none; }
+.boostcard.on .bolt { background: var(--lime); color: #071003; box-shadow: 0 0 34px rgba(182,255,59,.55); animation: pulseglow 1.6s ease-in-out infinite; }
+@keyframes pulseglow { 50% { box-shadow: 0 0 12px rgba(182,255,59,.3); } }
+.boostcard .bolt svg { width: 34px; height: 34px; }
+.boostcard b { font: 800 22px var(--mono); display: block; }
+.boostcard.on b { color: var(--lime); text-shadow: var(--glow); }
+.boostcard small { color: var(--muted); }
+.boostcard > div:nth-child(2) { flex: 1; }
+.urow { display: grid; grid-template-columns: 28px 1fr 150px 22px 150px; gap: 12px; align-items: center; padding: 7px 8px; border-radius: 8px; font: 12.5px var(--mono); }
+.urow:hover { background: rgba(182,255,59,.04); }
+.urow .tg { padding: 0; }
+.urow .un { min-width: 0; }
+.urow .un b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urow .un small { color: var(--dim); }
+.urow .uv { color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urow .ua { color: var(--lime); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urow > i { color: var(--dim); font-style: normal; text-align: center; }
+.job { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: rgba(4,6,4,.5); }
+.job + .job { margin-top: 10px; }
+.job b { font: 700 14px var(--mono); }
+.job .jp { font: 11.5px var(--mono); color: var(--muted); word-break: break-all; margin: 4px 0 8px; }
+.job .ops { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.isochip { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--text); }
+.isochip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: var(--glow); }
+
+/* monitor */
+.mon { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.mtile { position: relative; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 0; overflow: hidden; height: 132px;
+  background: linear-gradient(180deg, rgba(16,24,14,.9), rgba(8,12,7,.9)); }
+.mtile small { font: 600 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); display: block; }
+.mtile b { font: 800 26px var(--mono); color: var(--lime); text-shadow: var(--glow); display: block; margin-top: 4px; position: relative; z-index: 1; }
+.mtile em { font: normal 11.5px var(--mono); color: var(--muted); position: relative; z-index: 1; }
+.mtile canvas { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 62px; }
+.cores { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 6px; }
+.cores i { height: 46px; border-radius: 6px; background: #0b1209; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.cores i::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--v, 0%); background: linear-gradient(0deg, var(--green), var(--lime)); transition: height .5s ease; box-shadow: var(--glow); }
+.prow { display: grid; grid-template-columns: 1fr 160px 90px 64px; gap: 14px; align-items: center; padding: 7px 8px; border-radius: 8px; font: 12.5px var(--mono); }
+.prow:hover { background: rgba(182,255,59,.04); }
+.prow .pn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .pn small { color: var(--dim); margin-left: 6px; }
+.prow .pc { display: flex; align-items: center; gap: 8px; }
+.prow .pc .bar { flex: 1; margin: 0; height: 6px; }
+.prow .pc span { min-width: 44px; text-align: right; color: var(--lime); }
+.prow .pm { text-align: right; color: var(--muted); }
+.prow .lock { color: var(--dim); text-align: center; font-size: 11px; }
+/* startup */
+.srow { display: flex; align-items: center; gap: 14px; padding: 9px 8px; border-radius: 10px; }
+.srow:hover { background: rgba(182,255,59,.04); }
+.srow .tg { padding: 0; }
+.srow .sn { flex: 1; min-width: 0; }
+.srow .sn b { font: 600 13.5px var(--mono); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow .sn small { font: 11px var(--mono); color: var(--dim); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow.off .sn b { color: var(--muted); }
+/* dupes */
+.dg { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: rgba(4,6,4,.5); }
+.dg h4 { margin: 0 0 8px; font: 700 13px var(--mono); color: var(--text); display: flex; gap: 10px; }
+.dg h4 em { font-style: normal; color: var(--amber); margin-left: auto; }
+.df { display: flex; align-items: center; gap: 12px; padding: 4px 0; font: 12px var(--mono); }
+.df .tg { padding: 0; }
+.df span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.df small { color: var(--dim); white-space: nowrap; }
+.df .keep { color: var(--lime); font-size: 10px; letter-spacing: .1em; }
+/* repos */
+.repos { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.repo { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: linear-gradient(180deg, rgba(16,24,14,.85), rgba(8,12,7,.85)); display: flex; flex-direction: column; gap: 8px; }
+.repo.dirty { border-color: rgba(255,201,60,.3); }
+.repo b { font: 700 15px var(--mono); }
+.repo .rp { font: 11px var(--mono); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo .msg { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo .chips .chip.amber { color: var(--amber); border-color: rgba(255,201,60,.35); }
+.repo .ops { display: flex; gap: 6px; margin-top: 4px; }
+/* path doctor */
+.pe { display: flex; align-items: center; gap: 10px; padding: 5px 4px; font: 12px var(--mono); border-radius: 6px; }
+.pe:hover { background: rgba(182,255,59,.04); }
+.pe span { flex: 1; min-width: 0; word-break: break-all; }
+.pe .chip { flex: none; min-width: 46px; text-align: center; padding: 1px 6px; font-size: 10px; }
+.pe .chip.bad { color: var(--red); border-color: rgba(255,90,82,.35); }
+.pe .x { color: var(--dim); cursor: pointer; padding: 0 6px; }
+.pe .x:hover { color: var(--red); }
+/* toolbox */
+.tbx { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+.tbx .card + .card { margin-top: 0; }
+.tbx .wide { grid-column: 1 / -1; }
+.tbx .row { margin: 10px 0 0; flex-wrap: wrap; }
+textarea { width: 100%; min-height: 76px; resize: vertical; background: #060a05; border: 1px solid var(--line2); color: var(--text); border-radius: 10px; padding: 10px 12px; font: 12.5px var(--mono); outline: none; }
+textarea:focus { border-color: var(--lime); box-shadow: 0 0 0 3px rgba(182,255,59,.12); }
+.outbox { margin-top: 10px; padding: 10px 12px; min-height: 40px; border-radius: 10px; background: #020402; border: 1px dashed var(--line2); font: 12.5px/1.6 var(--mono); color: #a6f06a; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow: auto; }
+.outbox.err { color: var(--red); }
+.outbox mark { background: rgba(182,255,59,.3); color: #fff; border-radius: 3px; padding: 0 1px; }
+
+/* tools */
+.search { position: relative; flex: 1; max-width: 380px; min-width: 220px; }
+.search svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; color: var(--muted); pointer-events: none; }
+.search input { padding-left: 38px !important; padding-right: 38px !important; }
+.search kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 11px var(--mono); color: var(--dim); border: 1px solid var(--line2); border-radius: 5px; padding: 0 6px; }
+.tcount { font: 12px var(--mono); color: var(--muted); }
+.packs { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.packs > span { font: 600 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+.packs .chip { color: var(--amber); border-color: rgba(255,201,60,.3); }
+.packs .chip:hover { background: rgba(255,201,60,.08); border-color: var(--amber); }
+.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
+.tool { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; background: rgba(4,6,4,.55); cursor: pointer; transition: .14s; user-select: none; }
+.tool:hover { border-color: var(--line2); background: rgba(182,255,59,.035); }
+.tool.ok { border-color: rgba(182,255,59,.22); cursor: default; }
+.tool.sel { border-color: var(--lime); background: rgba(182,255,59,.09); box-shadow: var(--glow); }
+.tool .st { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font: 800 13px var(--mono); background: #0d140b; color: var(--dim); flex: none; border: 1px solid var(--line2); }
+.tool.ok .st { background: var(--lime); color: #071003; box-shadow: var(--glow); border-color: var(--lime); }
+.tool.sel .st { background: transparent; color: var(--lime); border-color: var(--lime); }
+.tool .tn { flex: 1; min-width: 0; }
+.tool b { font: 600 13px var(--mono); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool small { font: 11px var(--mono); color: var(--dim); }
+.tool .btn.s { padding: 4px 8px; font-size: 10px; }
+.tool mark { background: rgba(182,255,59,.25); color: var(--lime); border-radius: 3px; }
+.selbar { position: sticky; bottom: 0; margin-top: 18px; display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--lime); background: rgba(8,14,6,.96); box-shadow: 0 -10px 30px rgba(0,0,0,.6), var(--glow); animation: rise .2s ease; }
+.selbar b { font: 700 14px var(--mono); color: var(--lime); }
+.selbar .sp { flex: 1; }
+
+/* ---------- terminal ---------- */
+.drag { cursor: row-resize; background: transparent; position: relative; }
+.drag::after { content: ""; position: absolute; left: 50%; top: 2px; width: 46px; height: 2px; margin-left: -23px; border-radius: 2px; background: var(--line2); }
+.drag:hover::after { background: var(--lime); box-shadow: var(--glow); }
+.term { margin: 0 20px 18px; border: 1px solid var(--line2); border-radius: 14px; background: rgba(2,4,2,.94); display: flex; flex-direction: column; min-height: 0; overflow: hidden; box-shadow: 0 -10px 40px rgba(0,0,0,.35), inset 0 0 60px rgba(182,255,59,.025); }
+.term-h { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--line); font: 600 11px var(--mono); letter-spacing: .14em; color: var(--muted); }
+.term-h .t { color: var(--lime); }
+.term-h .st { display: flex; align-items: center; gap: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.term-h .st.run { color: var(--lime); }
+.term-h .st.bad { color: var(--red); }
+.term-h .st.bad .dot { background: var(--red); }
+.term-h .sp { flex: 1; }
+.term-h .el { color: var(--dim); letter-spacing: .04em; }
+#out { flex: 1; overflow: auto; padding: 12px 16px 16px; font: 12.5px/1.55 var(--mono); color: #a6f06a; white-space: pre-wrap; word-break: break-all; }
+#out .ln { min-height: 1.55em; }
+#out .cmd { color: var(--lime); font-weight: 700; text-shadow: var(--glow); margin-top: 8px; }
+#out .sh { color: var(--dim); }
+#out .ok { color: #071003; background: var(--lime); display: inline-block; padding: 0 8px; border-radius: 4px; font-weight: 700; box-shadow: var(--glow); }
+#out .err { color: var(--red); }
+#out .warn { color: var(--amber); }
+#out .dimln { color: var(--muted); }
+.ascii { color: var(--muted); font: 13px/1.9 var(--mono); white-space: pre-wrap; margin: 4px 0 0; }
+.ascii b { color: var(--lime); text-shadow: var(--glow); }
+.ascii b::before { content: "$ "; color: var(--dim); text-shadow: none; }
+.ascii i { color: var(--dim); font-style: normal; font-size: 12px; }
+.ascii .cur { display: inline-block; width: 8px; height: 15px; background: var(--lime); margin-left: 6px; vertical-align: -2px; animation: blink 1.05s steps(1) infinite; box-shadow: var(--glow); }
+
+/* toast */
+#toasts { position: fixed; right: 22px; top: 22px; display: grid; gap: 10px; z-index: 50; }
+.toast { background: #0b1209; border: 1px solid rgba(182,255,59,.4); color: var(--text); padding: 12px 16px; border-radius: 12px; font: 13px var(--ui); box-shadow: 0 10px 30px rgba(0,0,0,.5), var(--glow); animation: tin .25s ease; display: flex; gap: 10px; align-items: center; max-width: 380px; }
+.toast.err { border-color: rgba(255,90,82,.5); box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 18px rgba(255,90,82,.3); }
+.toast i { font-style: normal; color: var(--lime); font-weight: 800; }
+.toast.err i { color: var(--red); }
+@keyframes tin { from { opacity: 0; transform: translateX(20px); } }
+.hide { display: none !important; }
+.note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+.note code, .sub code { font: 12px var(--mono); color: var(--lime); background: rgba(182,255,59,.07); padding: 1px 6px; border-radius: 5px; }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="logo">Multi<b>T</b><span class="caret"></span></div>
+  <div class="tag">build · virtualize · ship</div>
+  <div class="palbtn" onclick="openPal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>search<kbd>Ctrl K</kbd></div>
+  <nav id="nav"></nav>
+  <div class="side-foot"><div id="sf-tools"><div><span>status</span><span>booting…</span></div></div><div id="sf-disk"></div></div>
+</aside>
+
+<main>
+  <div class="pages">
+
+    <!-- DASHBOARD -->
+    <section class="page" id="p-home">
+      <h1>Dash<span>board</span></h1>
+      <p class="sub">Your PC at a glance. Click any tile to jump to its tool — or press <code>Ctrl K</code> to search everything.</p>
+      <div class="dash" id="dash"></div>
+    </section>
+
+    <!-- AI MODELS -->
+    <section class="page" id="p-models">
+      <h1>AI <span>models</span></h1>
+      <p class="sub">Every model LM Studio, Hugging Face, Ollama and GPT4All downloaded — with duplicates across apps. Move a model to another drive and the app still finds it (a link is left behind); move it back any time.</p>
+      <div class="toolbar"><span class="tcount" id="md-count"></span><span class="btn s" style="margin-left:auto" onclick="modelsExtra()">scan another folder…</span>
+        <span class="btn s" onclick="loadModels()">rescan</span></div>
+      <div class="drives" id="md-apps"></div>
+      <div class="card"><h3>Models</h3><div id="md-list"><div class="empty">scanning…<span class="spin"></span></div></div></div>
+    </section>
+
+    <!-- VIDEO TOOLS -->
+    <section class="page" id="p-video">
+      <h1>Video <span>tools</span></h1>
+      <p class="sub">Shrink clips to fit Discord, trim, make GIFs, rip audio — powered by FFmpeg. Results are saved next to the original; nothing is overwritten.</p>
+      <div class="grid2">
+        <div class="card"><h3>Clip</h3>
+          <div class="row"><input class="grow" type="text" id="vi-path" placeholder="pick a video…" onchange="videoInfo()"><span class="btn s" onclick="pickInto('vi-path','file')">browse</span></div>
+          <div class="outbox" id="vi-info" style="min-height:0">no clip selected</div>
+          <div class="row" style="margin-top:12px">
+            <div class="grow"><label class="f">From (optional)</label><input type="text" id="vi-start" placeholder="0:05"></div>
+            <div class="grow"><label class="f">To (optional)</label><input type="text" id="vi-end" placeholder="0:20"></div></div>
+          <label class="f">Compress to fit</label>
+          <div class="row" style="flex-wrap:wrap"><div class="seg" id="vi-size"><button data-v="10" class="on">10 MB · Discord</button><button data-v="25">25 MB</button><button data-v="50">50 MB · Nitro Basic</button><button data-v="100">100 MB</button></div>
+            <input type="number" id="vi-custom" placeholder="custom MB" style="width:120px"></div>
+          <div class="actions"><span class="btn p" onclick="videoDo('compress')">Compress</span><span class="btn" onclick="videoDo('trim')">Trim</span>
+            <span class="btn" onclick="videoDo('gif')">GIF</span><span class="btn" onclick="videoDo('mp3')">MP3</span><span class="btn" onclick="videoDo('mp4')">→ MP4</span></div></div>
+        <div class="card"><h3>Batch</h3>
+          <p class="note" style="margin-top:0">Compress every video in a folder to the size picked on the left — handy for a whole Medal clips folder.</p>
+          <div class="row"><input class="grow" type="text" id="vi-folder" placeholder="C:\Users\you\Videos\Medal"><span class="btn s" onclick="pickInto('vi-folder','folder')">browse</span></div>
+          <div class="actions"><span class="btn p" onclick="need('vi-folder') && run(['video','batch',v('vi-folder'),'--size',videoSize()])">Compress folder</span></div>
+          <div id="vi-ff"></div></div>
+      </div>
+    </section>
+
+    <!-- SERVERS -->
+    <section class="page" id="p-servers">
+      <h1>Server <span>panel</span></h1>
+      <p class="sub">Run your servers in the background — they keep running when MultiT is closed, restart themselves if they crash, and log everything. Stop asks the server to save and shut down cleanly first.</p>
+      <div class="actions" style="margin:-8px 0 18px"><span class="btn p" onclick="show('create')">+ Create a new server (Minecraft, FiveM, Steam games…)</span></div>
+      <div class="grid2">
+        <div>
+          <div class="usbs" id="sv-list" style="grid-template-columns:1fr"></div>
+          <div class="card" style="margin-top:16px"><h3>Add a server</h3>
+            <div class="chips" style="margin-bottom:6px"><button class="chip" onclick="svPreset('fivem')">+ FiveM</button><button class="chip" onclick="svPreset('node')">+ Node</button><button class="chip" onclick="svPreset('python')">+ Python</button></div>
+            <label class="f">Name</label><input type="text" id="sv-name" placeholder="fivem">
+            <label class="f">Command</label><input type="text" id="sv-cmd" placeholder='"C:\FXServer\FXServer.exe" +exec server.cfg'>
+            <label class="f">Run in folder</label>
+            <div class="row"><input class="grow" type="text" id="sv-cwd" placeholder="C:\FXServer\server-data"><span class="btn s" onclick="pickInto('sv-cwd','folder')">browse</span></div>
+            <label class="tg" style="margin-top:12px"><input type="checkbox" id="sv-restart" checked><i></i><span>Restart automatically if it crashes<small>gives up after 5 crashes in 10 minutes</small></span></label>
+            <div class="actions"><span class="btn p" onclick="svSave()">Save server</span></div></div>
+        </div>
+        <div class="card"><h3>Console <span class="r tcount" id="sv-logname">pick a server</span></h3><div class="outbox" id="sv-log" style="max-height:none;height:420px"></div>
+          <div class="row" style="margin-top:10px"><input class="grow" type="text" id="sv-in" placeholder="type a server command, e.g. say hello · list · op name" onkeydown="if (event.key === 'Enter') svSend()">
+            <span class="btn s p" onclick="svSend()">send</span></div></div>
+      </div>
+    </section>
+
+    <!-- CREATE SERVER -->
+    <section class="page" id="p-create">
+      <h1>Create a <span>server</span></h1>
+      <p class="sub">Pick a platform, pick a framework, pick where it goes — MultiT downloads everything, writes the config and start script, and adds it to the Server panel ready to start.</p>
+      <div class="plats" id="cr-plats"></div>
+      <div class="card hide" id="cr-cfg" style="margin-top:18px">
+        <h3 id="cr-title"></h3>
+        <label class="f">Framework</label><div class="fwchips" id="cr-fw"></div>
+        <div id="cr-mc" class="hide">
+          <div class="row" style="margin-top:4px">
+            <div class="grow"><label class="f">Minecraft version</label><select id="cr-ver"><option value="">newest</option></select></div>
+            <div class="grow"><label class="f">RAM · <span class="rv" id="rv-ram2">4 GB</span></label><input type="range" id="cr-ram" min="2" max="16" value="4" oninput="this.style.setProperty('--pct', (this.value - 2) / 14 * 100 + '%'); $('rv-ram2').textContent = this.value + ' GB'"></div></div>
+          <label class="tg" style="margin-top:12px"><input type="checkbox" id="cr-eula"><i></i><span>I accept the <a href="#" onclick="api().open('https://aka.ms/MinecraftEULA');return false" style="color:var(--lime)">Minecraft EULA</a><small>required by Mojang to run a server</small></span></label>
+          <label class="tg"><input type="checkbox" id="cr-java" checked><i></i><span>Install the right Java automatically if it's missing<small id="cr-javainfo"></small></span></label>
+        </div>
+        <div id="cr-fivem" class="hide"><label class="f">Cfx.re license key (optional — can add later)</label>
+          <input type="password" id="cr-key" placeholder="cfxk_… from portal.cfx.re" autocomplete="off"></div>
+        <div id="cr-note" class="note"></div>
+        <div class="row" style="margin-top:6px">
+          <div class="grow"><label class="f">Server name</label><input type="text" id="cr-name"></div>
+          <div style="flex:2"><label class="f">Create in</label><div class="row"><input class="grow" type="text" id="cr-dir"><span class="btn s" onclick="pickInto('cr-dir','folder')">browse</span></div></div></div>
+        <small class="tcount" id="cr-path"></small>
+        <div class="actions"><span class="btn p big" onclick="createGo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download &amp; create</span></div>
+      </div>
+    </section>
+
+    <!-- BUILD -->
+    <section class="page" id="p-build">
+      <h1>Build <span>.exe</span></h1>
+      <p class="sub">Point at any project or single file. MultiT detects the language and compiles a Windows executable into <code>dist\</code>.</p>
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <div class="zone" id="zone">
+              <div id="zone-empty">
+                <svg class="big-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>
+                <p>Choose a project folder or a single source file</p>
+                <div class="row" style="justify-content:center"><span class="btn p" onclick="pickBuild('folder')">Folder</span><span class="btn" onclick="pickBuild('file')">File</span></div>
+              </div>
+              <div id="zone-full" class="hide">
+                <div class="det"><div class="lang" id="b-lang">PY</div>
+                  <div class="meta"><b id="b-langname">python</b><div id="b-root"></div><div id="b-entry"></div></div>
+                  <span class="btn s" onclick="pickBuild('folder')">change</span></div>
+              </div>
+            </div>
+            <div class="actions"><span class="btn p big" onclick="doBuild()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-9 12h8l-1 8 9-12h-8z"/></svg>Build exe</span>
+              <span class="btn" onclick="v('b-path') && run(['detect', v('b-path')])">Detect only</span>
+              <span class="btn" onclick="v('b-path') && run(['clean', v('b-path')])">Preview junk</span></div>
+          </div>
+          <div class="card"><h3>Supported</h3><div class="chips" id="langchips"></div></div>
+        </div>
+        <div class="card"><h3>Options</h3>
+          <input type="hidden" id="b-path">
+          <label class="f">Exe name</label><input type="text" id="b-name" placeholder="defaults to folder / file name">
+          <label class="f">Output folder</label>
+          <div class="row"><input class="grow" type="text" id="b-out" placeholder="<project>\dist"><span class="btn s" onclick="pickInto('b-out','folder')">browse</span></div>
+          <label class="f">Icon (.ico · python)</label>
+          <div class="row"><input class="grow" type="text" id="b-icon" placeholder="optional"><span class="btn s" onclick="pickInto('b-icon','ico')">browse</span></div>
+          <label class="f">Flags</label>
+          <label class="tg"><input type="checkbox" id="b-gui"><i></i><span>Hide console window<small>for GUI apps · python / go / java</small></span></label>
+          <label class="tg"><input type="checkbox" id="b-venv"><i></i><span>Clean venv build<small>python · isolated throwaway environment (project .venv is always used if present)</small></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- VMS -->
+    <section class="page" id="p-vms">
+      <h1>Virtual <span>machines</span></h1>
+      <p class="sub">Pick an OS and hit launch. The ISO is fetched automatically; VirtualBox installs the OS unattended, VMware boots straight into the installer.</p>
+      <div class="grid2">
+        <div class="card"><h3>New machine</h3>
+          <label class="f">Operating system</label>
+          <select id="vm-os" onchange="osChanged()"></select>
+          <div id="vm-isorow" class="hide"><label class="f">ISO file</label>
+            <div class="row"><input class="grow" type="text" id="vm-iso" placeholder="C:\path\to\image.iso"><span class="btn s" onclick="pickInto('vm-iso','iso')">browse</span></div></div>
+          <label class="f">Name</label><input type="text" id="vm-name" placeholder="my-vm">
+          <div class="rangebox" style="margin-top:14px">
+            <div><label class="f">RAM · <span class="rv" id="rv-ram"></span></label><input type="range" id="vm-ram" min="1" max="32" value="4" oninput="rng(this,'GB')"></div>
+            <div><label class="f">CPU · <span class="rv" id="rv-cpu"></span></label><input type="range" id="vm-cpu" min="1" max="16" value="2" oninput="rng(this,'cores')"></div>
+            <div><label class="f">Disk · <span class="rv" id="rv-disk"></span></label><input type="range" id="vm-disk" min="20" max="500" step="10" value="50" oninput="rng(this,'GB')"></div>
+          </div>
+          <label class="f">Hypervisor</label>
+          <div class="seg" id="vm-prov"><button class="on" data-v="">Auto</button><button data-v="--vbox">VirtualBox</button><button data-v="--vmware">VMware</button></div>
+          <div class="row" style="margin-top:4px">
+            <div class="grow"><label class="f">User</label><input type="text" id="vm-user" value="user"></div>
+            <div class="grow"><label class="f">Password</label><input type="password" id="vm-pass" placeholder="random"></div>
+          </div>
+          <label class="tg" style="margin-top:12px"><input type="checkbox" id="vm-dev" checked><i></i><span>Install Python + coder essentials<small>python · pip · venv · git · node/npm · VS Code · gcc/make · curl/wget · vim · htop</small></span></label>
+          <label class="tg"><input type="checkbox" id="vm-headless"><i></i><span>Headless<small>run without a window</small></span></label>
+          <div class="actions"><span class="btn p big" onclick="vmCreate()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>Create &amp; launch</span></div>
+        </div>
+        <div>
+          <div class="card"><h3>Your machines <span class="r btn s" onclick="loadVMs()">refresh</span></h3><div id="vmlist"><div class="empty">scanning…</div></div></div>
+          <div class="card" id="hv-card"><h3>Hypervisors</h3><div id="hv"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ISOS -->
+    <section class="page" id="p-isos">
+      <h1>ISO <span>library</span></h1>
+      <p class="sub">The 20 most popular systems — always the latest release, resolved live from official mirrors. Downloads resume if interrupted.</p>
+      <div class="toolbar"><input type="text" id="iso-q" placeholder="search…" oninput="drawIsos()"><div class="chips" id="iso-f"></div></div>
+      <div class="tiles" id="tiles"></div>
+      <p class="note">Saved to <code id="isodir"></code></p>
+    </section>
+
+    <!-- SPACE -->
+    <section class="page" id="p-space">
+      <h1>Free up <span>space</span></h1>
+      <p class="sub">Like Windows Disk Cleanup, plus the caches coders pile up (pip, npm, Go, Cargo, NuGet, Gradle). Files in use are skipped and nothing outside these folders is ever touched.</p>
+      <div class="drives" id="drives"></div>
+      <div class="vizcta" onclick="show('viz')">
+        <div class="vizcta-art"><i style="background:#3ddc6a;grid-row:span 2"></i><i style="background:#ffc93c"></i><i style="background:#ff4fd8"></i><i style="background:#33c7ff;grid-column:span 2"></i></div>
+        <div><b>Visualize disk</b><small>See exactly what's eating your space as a map — Windows &amp; program files hidden so you only see what you can clean.</small></div>
+        <span class="btn p">Open map →</span>
+      </div>
+      <div class="card"><h3>Junk found <span class="r row" id="adm"></span><span class="btn s" onclick="scanJunk()">rescan</span></h3>
+        <div id="junk"><div class="empty">scanning…</div></div>
+        <div class="cleanbar"><div><small>selected</small><b id="sel-total">0 B</b></div>
+          <span class="btn p big" onclick="doClean()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Clean up</span></div>
+      </div>
+    </section>
+
+    <!-- DISK MAP -->
+    <section class="page" id="p-viz">
+      <div class="vizbar">
+        <span class="btn s" onclick="show('space')">← back</span>
+        <h1>Disk <span>map</span></h1>
+        <select id="viz-root" onchange="vizRootChanged()"></select>
+        <label class="tg"><input type="checkbox" id="viz-sys"><i></i><span>Show Windows &amp; program files</span></label>
+        <span class="btn p" onclick="vizScan()">Scan</span>
+      </div>
+      <div class="crumbs" id="viz-crumbs"></div>
+      <div class="vizbox" id="vizbox"><canvas id="viz"></canvas><div id="vizdir"></div><div id="vizhl"></div><div id="vizsel"></div>
+        <div class="viztip" id="viztip"></div>
+        <div class="vizload" id="vizload"><div><span class="spin"></span> <b id="vizload-n">pick a drive and hit scan</b><small id="vizload-p"></small></div></div></div>
+      <div class="vizstatus" id="viz-status"></div>
+      <div class="grid3">
+        <div class="card"><h3>Selection</h3><div id="viz-sel"><div class="empty">click a block · double-click to zoom in · backspace to zoom out</div></div></div>
+        <div class="card"><h3>By type</h3><div id="viz-legend"></div></div>
+        <div class="card"><h3>Biggest files here</h3><div id="viz-top"></div></div>
+      </div>
+    </section>
+
+    <!-- DUPLICATES -->
+    <section class="page" id="p-dupes">
+      <h1>Duplicate <span>files</span></h1>
+      <p class="sub">Finds files with identical content — compared by hash, not by name. The oldest copy is kept by default; the extra copies go to the Recycle Bin.</p>
+      <div class="card"><h3>Scan</h3>
+        <div class="row"><input class="grow" type="text" id="du-path" placeholder="C:\Users\you\Downloads"><span class="btn s" onclick="pickInto('du-path','folder')">browse</span>
+          <select id="du-min" style="width:auto"><option value="0.1">≥ 100 KB</option><option value="1" selected>≥ 1 MB</option><option value="10">≥ 10 MB</option><option value="100">≥ 100 MB</option></select>
+          <span class="btn p" onclick="dupScan()">Find duplicates</span></div>
+        <div class="note" id="du-prog"></div></div>
+      <div id="du-res"></div>
+      <div class="selbar hide" id="du-bar"><b id="du-sel"></b><span class="sp"></span><span class="btn d" onclick="dupRecycle()">Recycle selected</span></div>
+    </section>
+
+    <!-- USB ENCRYPT -->
+    <section class="page" id="p-usb">
+      <h1>USB <span>encrypt</span></h1>
+      <p class="sub">Lock a USB drive with your own password. Every file — and its name — is encrypted with AES-256-GCM; your password unlocks a random 256-bit key (scrypt). Each file is verified before its original is removed.</p>
+      <div class="warnbox"><b>!</b><div>Your password is the only key. <b>Forget it and the files are gone</b> — nobody, including MultiT, can recover them.
+        Unplugging mid-way is safe (originals are only removed after their encrypted copy is verified), but let it finish.</div></div>
+      <div class="toolbar"><span class="tcount" id="usb-count"></span><span class="btn s" style="margin-left:auto" onclick="loadUsb()">refresh</span></div>
+      <div class="usbs" id="usb-list"><div class="empty">looking for USB drives…</div></div>
+    </section>
+
+    <!-- FOLDER VAULTS -->
+    <section class="page" id="p-vaults">
+      <h1>Folder <span>vaults</span></h1>
+      <p class="sub">Lock any folder with your own password — same AES-256-GCM engine as USB encrypt, but at SSD speed. File names are hidden too.</p>
+      <div class="warnbox"><b>!</b><div>Forget the password and the files are gone. Windows, program folders and your top-level profile folders (Desktop, Documents…) can't be locked — pick a folder inside them.</div></div>
+      <div class="toolbar"><span class="tcount" id="va-count"></span><span class="btn s" style="margin-left:auto" onclick="loadVaults()">refresh</span>
+        <span class="btn p" onclick="vaultAdd()">+ lock a folder</span></div>
+      <div class="usbs" id="va-list"></div>
+    </section>
+
+    <!-- GAME BOOSTER -->
+    <section class="page" id="p-boost">
+      <h1>Game <span>booster</span></h1>
+      <p class="sub">One click before you play: switches Windows to the High performance power plan and closes the apps you pick. Boost off puts the power plan back and reopens them.</p>
+      <div class="boostcard" id="bo-card"></div>
+      <div class="card"><h3>Apps to close when boosting <span class="r tcount" id="bo-sel"></span></h3>
+        <p class="note" style="margin-top:0">Running now, heaviest first. Windows essentials are never listed. Unsaved work in a closed app is lost — your picks are remembered.</p>
+        <div id="bo-list"><div class="empty">reading…</div></div></div>
+    </section>
+
+    <!-- APP UPDATES -->
+    <section class="page" id="p-updates">
+      <h1>App <span>updates</span></h1>
+      <p class="sub">Everything winget can update on this PC. Close an app before updating it — a running app can block its own update. Some installers ask for admin.</p>
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="text" id="up-q" placeholder="filter…" oninput="drawUpdates()"></div>
+        <span class="tcount" id="up-count"></span><span class="btn s" style="margin-left:auto" onclick="loadUpdates()">recheck</span>
+        <span class="btn" onclick="updSel()">update selected</span><span class="btn p" onclick="confirm('Update every app winget can update?') && run(['update','--all'], loadUpdates)">update all</span></div>
+      <div class="card"><div id="up-list"><div class="empty">asking winget…<span class="spin"></span></div></div></div>
+    </section>
+
+    <!-- BACKUPS -->
+    <section class="page" id="p-backups">
+      <h1>Backup <span>jobs</span></h1>
+      <p class="sub">Copy folders to another drive, on demand or on a schedule (Windows Task Scheduler runs them even when MultiT is closed). Only changed files are copied after the first run.</p>
+      <div class="grid2">
+        <div class="card"><h3>New job</h3>
+          <label class="f">Name</label><input type="text" id="bk-name" placeholder="photos">
+          <label class="f">Back up this folder</label>
+          <div class="row"><input class="grow" type="text" id="bk-src" placeholder="C:\Users\you\Pictures"><span class="btn s" onclick="pickInto('bk-src','folder')">browse</span></div>
+          <label class="f">Into</label>
+          <div class="row"><input class="grow" type="text" id="bk-dst" placeholder="D:\Backups\photos"><span class="btn s" onclick="pickInto('bk-dst','folder')">browse</span></div>
+          <label class="f">Mode</label>
+          <div class="seg" id="bk-mode"><button class="on" data-v="copy">Copy</button><button data-v="mirror">Mirror</button></div>
+          <p class="note" id="bk-modenote">Copy: new and changed files are copied; nothing is ever deleted from the backup.</p>
+          <label class="f">Schedule</label>
+          <div class="row"><select id="bk-sched" style="width:auto" onchange="$('bk-at').style.display = this.value === 'daily' ? '' : 'none'">
+            <option value="off">manual only</option><option value="daily">daily</option><option value="hourly">hourly</option><option value="logon">when I sign in</option></select>
+            <input type="text" id="bk-at" value="20:00" style="width:90px;display:none"></div>
+          <div class="actions"><span class="btn p" onclick="backupSave()">Save job</span></div></div>
+        <div class="card"><h3>Jobs <span class="r btn s" onclick="run(['backup','run','--all'], loadBackups)">run all</span></h3><div id="bk-list"></div></div>
+      </div>
+    </section>
+
+    <!-- BOOTABLE USB -->
+    <section class="page" id="p-boot">
+      <h1>Bootable <span>USB</span></h1>
+      <p class="sub">Turn a stick into a multi-boot drive with Ventoy: set it up once, then just copy ISOs onto it — no reformatting per OS. Boot the PC from the stick and pick an OS from the menu.</p>
+      <div class="card" id="bt-ventoy"></div>
+      <div class="usbs" id="bt-list" style="margin-top:18px"></div>
+    </section>
+
+    <!-- MONITOR -->
+    <section class="page" id="p-monitor">
+      <h1>System <span>monitor</span></h1>
+      <p class="sub">Live view of your machine. Kill a runaway app in one click — processes Windows needs are locked so you can't crash it by accident.</p>
+      <div class="mon">
+        <div class="mtile"><small>CPU</small><b id="m-cpu">–</b><em id="m-cpu2"></em><canvas id="g-cpu"></canvas></div>
+        <div class="mtile"><small>Memory</small><b id="m-ram">–</b><em id="m-ram2"></em><canvas id="g-ram"></canvas></div>
+        <div class="mtile"><small>Disk</small><b id="m-disk">–</b><em id="m-disk2"></em><canvas id="g-disk"></canvas></div>
+        <div class="mtile"><small>Network</small><b id="m-net">–</b><em id="m-net2"></em><canvas id="g-net"></canvas></div>
+      </div>
+      <div class="card"><h3>Cores <span class="r" id="m-up" style="letter-spacing:.04em"></span></h3><div class="cores" id="m-cores"></div></div>
+      <div class="card"><h3>Processes <span class="r seg" id="m-sort"><button class="on" data-v="cpu">CPU</button><button data-v="mem">RAM</button></span></h3><div id="m-procs"><div class="empty">sampling…</div></div></div>
+    </section>
+
+    <!-- STARTUP -->
+    <section class="page" id="p-startup">
+      <h1>Startup <span>apps</span></h1>
+      <p class="sub">What launches when you sign in. Same switch as Task Manager's Startup tab — nothing is deleted, flip it back any time. Fewer startup apps, faster boot.</p>
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="text" id="st-q" placeholder="filter…" oninput="drawStartup()"></div>
+        <span class="tcount" id="st-count"></span><span class="btn s" style="margin-left:auto" onclick="loadStartup()">refresh</span></div>
+      <div class="card"><div id="st-list"><div class="empty">reading…</div></div></div>
+    </section>
+
+    <!-- GIT REPOS -->
+    <section class="page" id="p-repos">
+      <h1>Git <span>repos</span></h1>
+      <p class="sub">Every repository under a folder at a glance — branch, uncommitted changes, ahead/behind. "Pull all" only fast-forwards clean repos, so your work is never touched.</p>
+      <div class="card"><div class="row"><input class="grow" type="text" id="rp-path"><span class="btn s" onclick="pickInto('rp-path','folder')">browse</span>
+        <span class="btn" onclick="repoScan(true)">Fetch &amp; scan</span><span class="btn p" onclick="repoScan(false)">Scan</span></div></div>
+      <div class="toolbar" style="margin-top:16px"><span class="tcount" id="rp-count"></span>
+        <span class="btn s" style="margin-left:auto" onclick="need('rp-path') && run(['repos', v('rp-path'), '--pull'], () => repoScan(false))">pull all clean</span></div>
+      <div class="repos" id="rp-list"></div>
+    </section>
+
+    <!-- PATH DOCTOR -->
+    <section class="page" id="p-pathdoc">
+      <h1>PATH <span>doctor</span></h1>
+      <p class="sub">The folders Windows searches, in order, when you type a command. Dead and duplicate entries cause "wrong version" bugs. Fixes only touch your user PATH, and the old one is backed up first.</p>
+      <div class="toolbar"><span class="tcount" id="pd-count"></span>
+        <span class="btn s" style="margin-left:auto" onclick="pdAdd()">add folder…</span><span class="btn p" id="pd-fix" onclick="pdFix()">Clean user PATH</span></div>
+      <div class="grid2"><div class="card"><h3>User PATH</h3><div id="pd-user"></div></div>
+        <div class="card"><h3>System PATH <span class="r chip">read-only</span></h3><div id="pd-sys"></div></div></div>
+    </section>
+
+    <!-- DEV TOOLBOX -->
+    <section class="page" id="p-toolbox">
+      <h1>Dev <span>toolbox</span></h1>
+      <p class="sub">Everyday converters and generators. Runs entirely on your machine — nothing you paste here leaves it.</p>
+      <div class="tbx">
+        <div class="card"><h3>Password</h3>
+          <div class="row"><input type="range" id="pw-len" min="8" max="64" value="20" oninput="genPw()"><span class="rv" id="pw-lenv" style="min-width:34px">20</span></div>
+          <div class="row" style="gap:18px"><label class="tg"><input type="checkbox" id="pw-num" checked onchange="genPw()"><i></i><span>0-9</span></label>
+            <label class="tg"><input type="checkbox" id="pw-sym" checked onchange="genPw()"><i></i><span>!@#</span></label></div>
+          <div class="outbox" id="pw-out"></div><div class="row"><span class="btn s" onclick="genPw()">regenerate</span><span class="btn s" onclick="copyText($('pw-out').textContent)">copy</span><span class="tcount" id="pw-bits"></span></div></div>
+        <div class="card"><h3>UUID</h3><div class="outbox" id="uu-out"></div>
+          <div class="row"><span class="btn s" onclick="genUuid(1)">1</span><span class="btn s" onclick="genUuid(5)">5</span><span class="btn s" onclick="genUuid(20)">20</span><span class="btn s" onclick="copyText($('uu-out').textContent)">copy</span></div></div>
+        <div class="card"><h3>Base64</h3><textarea id="b64-in" placeholder="text or base64…"></textarea>
+          <div class="row"><span class="btn s" onclick="b64(1)">encode</span><span class="btn s" onclick="b64(0)">decode</span><span class="btn s" onclick="copyText($('b64-out').textContent)">copy</span></div><div class="outbox" id="b64-out"></div></div>
+        <div class="card"><h3>JSON</h3><textarea id="js-in" placeholder='{"paste": "json"}'></textarea>
+          <div class="row"><span class="btn s" onclick="fmtJson(2)">format</span><span class="btn s" onclick="fmtJson(0)">minify</span><span class="btn s" onclick="copyText($('js-out').textContent)">copy</span></div><div class="outbox" id="js-out"></div></div>
+        <div class="card"><h3>JWT decoder</h3><textarea id="jwt-in" placeholder="eyJhbGciOi…" oninput="decJwt()"></textarea><div class="outbox" id="jwt-out"></div></div>
+        <div class="card"><h3>Timestamp</h3><div class="outbox" id="ts-now"></div>
+          <input type="text" id="ts-in" placeholder="1760000000  or  2026-10-16 14:30" oninput="convTs()"><div class="outbox" id="ts-out"></div></div>
+        <div class="card"><h3>Hash text</h3><textarea id="ht-in" placeholder="text to hash…" oninput="hashText()"></textarea><div class="outbox" id="ht-out"></div></div>
+        <div class="card"><h3>URL encode</h3><textarea id="url-in" placeholder="a=1&b=hello world"></textarea>
+          <div class="row"><span class="btn s" onclick="urlc(1)">encode</span><span class="btn s" onclick="urlc(0)">decode</span><span class="btn s" onclick="copyText($('url-out').textContent)">copy</span></div><div class="outbox" id="url-out"></div></div>
+        <div class="card wide"><h3>Regex tester</h3>
+          <div class="row"><input class="grow" type="text" id="rx-p" placeholder="pattern e.g. (\w+)@(\w+)\.com" oninput="testRx()"><input type="text" id="rx-f" value="g" style="width:70px" oninput="testRx()"></div>
+          <textarea id="rx-t" placeholder="test text…" oninput="testRx()" style="margin-top:10px"></textarea><div class="outbox" id="rx-out"></div></div>
+      </div>
+    </section>
+
+    <!-- VENV -->
+    <section class="page" id="p-venv">
+      <h1>Python <span>venv</span></h1>
+      <p class="sub">Create or update a project's <code>.venv</code> and install its <code>requirements.txt</code> / <code>pyproject.toml</code>. Builds automatically use it.</p>
+      <div class="card" style="max-width:720px"><h3>Environment</h3>
+        <label class="f">Project folder</label>
+        <div class="row"><input class="grow" type="text" id="ve-path" placeholder="C:\path\to\project"><span class="btn s" onclick="pickInto('ve-path','folder')">browse</span></div>
+        <label class="f">Extra packages</label><input type="text" id="ve-pkgs" placeholder="requests rich fastapi">
+        <div class="actions"><span class="btn p" onclick="need('ve-path') && run(['venv', v('ve-path'), ...words('ve-pkgs')])">Create / update venv</span></div>
+      </div>
+    </section>
+
+    <!-- PORTS -->
+    <section class="page" id="p-ports">
+      <h1>Ports <span>&amp; processes</span></h1>
+      <p class="sub">See what's listening, and free a port that's stuck.</p>
+      <div class="card" style="max-width:720px"><h3>Scan</h3>
+        <label class="f">Port (empty = all)</label><input type="number" id="po-port" placeholder="3000">
+        <div class="actions"><span class="btn p" onclick="run(['ports', ...opt(v('po-port'))])">Scan</span>
+          <span class="btn d" onclick="need('po-port') && confirm('Kill whatever is listening on port ' + v('po-port') + '?') && run(['ports', v('po-port'), '--kill'])">Kill port</span></div>
+      </div>
+    </section>
+
+    <!-- SERVE -->
+    <section class="page" id="p-serve">
+      <h1>Share <span>folder</span></h1>
+      <p class="sub">Instant HTTP file server — open it from your phone or any machine on the LAN. Stop it from the terminal bar.</p>
+      <div class="card" style="max-width:720px"><h3>Server</h3>
+        <label class="f">Folder</label>
+        <div class="row"><input class="grow" type="text" id="se-dir" placeholder="C:\path\to\share"><span class="btn s" onclick="pickInto('se-dir','folder')">browse</span></div>
+        <label class="f">Port</label><input type="number" id="se-port" value="8000">
+        <div class="actions"><span class="btn p" onclick="need('se-dir') && run(['serve', v('se-dir'), '-p', v('se-port') || 8000])">Start sharing</span>
+          <span class="btn" onclick="api().open('http://localhost:' + (v('se-port') || 8000))">Open in browser</span>
+          <span class="btn d" onclick="api().stop()">Stop</span></div>
+      </div>
+    </section>
+
+    <!-- HASH -->
+    <section class="page" id="p-hash">
+      <h1>File <span>hash</span></h1>
+      <p class="sub">SHA-256, SHA-1 and MD5 — paste the published checksum to verify a download.</p>
+      <div class="card" style="max-width:720px"><h3>Verify</h3>
+        <label class="f">File</label>
+        <div class="row"><input class="grow" type="text" id="ha-file" placeholder="C:\path\to\file"><span class="btn s" onclick="pickInto('ha-file','file')">browse</span></div>
+        <label class="f">Expected hash (optional)</label><input type="text" id="ha-exp" placeholder="sha256 / sha1 / md5">
+        <div class="actions"><span class="btn p" onclick="need('ha-file') && run(['hash', v('ha-file'), ...opt(v('ha-exp'), '--check')])">Hash it</span></div>
+      </div>
+    </section>
+
+    <!-- CLEAN -->
+    <section class="page" id="p-clean">
+      <h1>Clean <span>junk</span></h1>
+      <p class="sub">Removes <code>__pycache__</code>, <code>build</code>, <code>dist</code>, Rust <code>target</code>, .NET <code>bin/obj</code>, <code>*.spec</code>. Skips <code>.git</code>, <code>node_modules</code> and venvs.</p>
+      <div class="card" style="max-width:720px"><h3>Target</h3>
+        <label class="f">Folder</label>
+        <div class="row"><input class="grow" type="text" id="cl-path" placeholder="C:\path\to\project"><span class="btn s" onclick="pickInto('cl-path','folder')">browse</span></div>
+        <div class="actions"><span class="btn" onclick="need('cl-path') && run(['clean', v('cl-path')])">Preview</span>
+          <span class="btn d" onclick="need('cl-path') && confirm('Delete all build junk under ' + v('cl-path') + '?') && run(['clean', v('cl-path'), '--yes'])">Delete junk</span></div>
+      </div>
+    </section>
+
+    <!-- TOOLS -->
+    <section class="page" id="p-tools">
+      <h1>Tool<span>chains</span></h1>
+      <p class="sub">Every dev tool you could want, and what's already on this machine. Click tools to select them (or grab a pack), then install them all in one go through winget.</p>
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="text" id="t-q" placeholder="search tools…" oninput="drawTools()"><kbd>/</kbd></div>
+        <div class="seg" id="t-st"><button class="on" data-v="all">All</button><button data-v="missing">Missing</button><button data-v="ok">Installed</button></div>
+        <span class="tcount" id="t-count"></span>
+        <span class="btn s" style="margin-left:auto" onclick="loadTools()">recheck</span>
+      </div>
+      <div class="chips" id="t-cats" style="margin-bottom:12px"></div>
+      <div class="packs"><span>packs</span><div class="chips" id="t-packs"></div></div>
+      <div id="tools"><div class="empty">checking…<span class="spin"></span></div></div>
+      <div class="selbar hide" id="selbar"><b id="sel-n"></b><span class="sp"></span>
+        <span class="btn s" onclick="SEL.clear(); drawTools()">clear</span>
+        <span class="btn p" onclick="installSel()">Install selected</span></div>
+    </section>
+  </div>
+
+  <div class="drag" id="drag"></div>
+  <div class="term">
+    <div class="term-h"><span class="t">▍TERMINAL</span>
+      <span class="st" id="st"><span class="dot"></span><span id="st-t">idle</span></span><span class="el" id="el"></span>
+      <span class="sp"></span>
+      <span class="btn s" onclick="copyOut()">copy</span><span class="btn s" onclick="clearOut()">clear</span><span class="btn s d" onclick="api().stop()">stop</span>
+    </div>
+    <div id="out"></div>
+  </div>
+</main>
+<div id="toasts"></div>
+<div class="modal hide" id="palette" onclick="if (event.target === this) closePal()">
+  <div class="mbox pal"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="text" id="pal-q" placeholder="search tools and actions…" autocomplete="off" oninput="drawPal()"><kbd>esc</kbd></div><div id="pal-list"></div></div>
+</div>
+<div class="modal hide" id="pw-modal" onclick="if (event.target === this) closePw()">
+  <div class="mbox">
+    <h2 id="pwm-title"></h2><p class="sub" id="pwm-sub" style="margin:4px 0 16px"></p>
+    <label class="f" id="pwm-l1">Password</label>
+    <div class="row"><input class="grow" type="password" id="pwm-1" autocomplete="off" oninput="pwCheck()"><span class="btn s" onclick="pwPeek()">show</span></div>
+    <div id="pwm-newrow"><label class="f" id="pwm-l2">New password</label><input type="password" id="pwm-2" autocomplete="off" oninput="pwCheck()">
+      <div class="meter"><i id="pwm-meter"></i></div><small class="tcount" id="pwm-strength"></small>
+      <label class="f">Repeat</label><input type="password" id="pwm-3" autocomplete="off" oninput="pwCheck()"></div>
+    <label class="tg" id="pwm-ackrow" style="margin-top:14px"><input type="checkbox" id="pwm-ack" onchange="pwCheck()"><i></i><span>I understand there is no recovery if I forget this password</span></label>
+    <div class="note" id="pwm-msg"></div>
+    <div class="actions"><span class="btn" onclick="closePw()">cancel</span><span class="btn p" id="pwm-go" onclick="pwGo()">go</span></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const v = id => $(id).value.trim();
+const words = id => v(id).split(/\s+/).filter(Boolean);
+const opt = (val, flag) => val ? (flag ? [flag, val] : [val]) : [];
+const api = () => window.pywebview.api;
+function need(id) { if (v(id)) return true; $(id).focus(); toast('Fill in that field first', true); return false; }
+
+const ICON = {
+  build: '<path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+  vms: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  isos: '<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5"/>',
+  venv: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  ports: '<path d="M4 7h16M16 3l4 4-4 4M20 17H4M8 13l-4 4 4 4"/>',
+  serve: '<path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5M16 7l-4-4-4 4M12 3v13"/>',
+  hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  clean: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>',
+  space: '<rect x="2" y="13" width="20" height="8" rx="2"/><path d="M5 13 7.5 4h9L19 13M6 17h.01M10 17h.01"/>',
+  tools: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+};
+Object.assign(ICON, {
+  dupes: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  monitor: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  usb: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  vaults: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><rect x="9.5" y="12" width="5" height="4" rx="1"/><path d="M10.5 12v-1a1.5 1.5 0 0 1 3 0v1"/>',
+  boost: '<path d="m13 2-9 12h8l-1 8 9-12h-8z"/>',
+  updates: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  backups: '<path d="M4 7h16v13H4z"/><path d="M4 7l2-4h12l2 4M10 12h4"/>',
+  boot: '<path d="M8 2h8v6H8z"/><rect x="5" y="8" width="14" height="14" rx="2"/><path d="M12 11v6M9 14l3 3 3-3"/>',
+  startup: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+  repos: '<circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 7.5v9M18 10.5c0 4-6 3-11 6"/>',
+  pathdoc: '<path d="M4 4h11a4 4 0 0 1 0 8H9a4 4 0 0 0 0 8h11"/><circle cx="4" cy="4" r="1.5"/><circle cx="20" cy="20" r="1.5"/>',
+  toolbox: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>',
+});
+Object.assign(ICON, {
+  home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  models: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+  video: '<rect x="2" y="5" width="15" height="14" rx="2"/><path d="m17 10 5-3v10l-5-3"/>',
+  servers: '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/>',
+  create: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/>',
+});
+const NAV = [['home', 'Dashboard'], ['build', 'Build exe'], ['vms', 'Virtual machines'], ['isos', 'ISO library'], ['boot', 'Bootable USB'],
+             '—PC', ['space', 'Free up space'], ['dupes', 'Duplicates'], ['monitor', 'System monitor'], ['boost', 'Game booster'], ['startup', 'Startup apps'],
+             ['updates', 'App updates'], ['backups', 'Backups'],
+             '—SECURITY', ['usb', 'USB encrypt'], ['vaults', 'Folder vaults'],
+             '—DEV', ['servers', 'Server panel'], ['create', 'Create server'], ['models', 'AI models'], ['venv', 'Python venv'], ['tools', 'Toolchains'], ['repos', 'Git repos'], ['pathdoc', 'PATH doctor'], ['toolbox', 'Dev toolbox'],
+             '—UTILS', ['video', 'Video tools'], ['ports', 'Ports'], ['serve', 'Share folder'], ['hash', 'File hash'], ['clean', 'Clean junk']];
+$('nav').innerHTML = NAV.map(n => typeof n === 'string' ? `<div class="sep">${n.slice(1)}</div>` :
+  `<a data-p="${n[0]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[n[0]]}</svg>${n[1]}</a>`).join('');
+function show(p) {
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.p === p));
+  document.querySelectorAll('.page').forEach(s => s.classList.toggle('on', s.id === 'p-' + p));
+  try { localStorage.setItem('multit.page', p); } catch (e) {}
+  if (p === 'vms') loadVMs();
+  if (p === 'space') { loadDisks(); if (!JUNKS.length) scanJunk(); }
+  if (p === 'viz') vizOpen();
+  if (p === 'monitor') monStart();
+  if (p === 'startup') loadStartup();
+  if (p === 'usb') loadUsb();
+  if (p === 'home') loadDash();
+  if (p === 'models' && !MODELS) loadModels();
+  if (p === 'servers') { loadServers(); svPoll(); }
+  if (p === 'video') videoFF();
+  if (p === 'create') loadCreate();
+  if (p === 'vaults') loadVaults();
+  if (p === 'boost') loadBoost();
+  if (p === 'updates' && !UPDS) loadUpdates();
+  if (p === 'backups') loadBackups();
+  if (p === 'boot') loadBoot();
+  if (p === 'pathdoc') loadPath();
+  if (p === 'repos' && !v('rp-path')) $('rp-path').value = HOME + '\\Documents';
+  if (p === 'dupes' && !v('du-path')) $('du-path').value = HOME + '\\Downloads';
+}
+$('nav').onclick = e => { const a = e.target.closest('a'); if (a) show(a.dataset.p); };
+
+/* ---------- terminal ---------- */
+const out = $('out');
+let cur = null, cr = false, running = false, t0 = 0, timer = null, after = null;
+const ASCII = `<div class="ascii"><b>multit</b> ready<span class="cur"></span>\n<i>pick a tool on the left · output streams here · ctrl+L clears</i></div>`;
+function clearOut() { out.innerHTML = ASCII; cur = null; }
+function line(cls) { cur = document.createElement('div'); cur.className = 'ln' + (cls ? ' ' + cls : ''); out.appendChild(cur); return cur; }
+function classify(el) {
+  const t = el.textContent;
+  if (/^OK\s/.test(t)) { el.innerHTML = `<span class="ok">✓ OK</span>` + esc(t.slice(2)); }
+  else if (/^>\s/.test(t)) el.classList.add('sh');
+  else if (/(error|failed|missing tool|not found|couldn't|traceback|mismatch)/i.test(t)) el.classList.add('err');
+  else if (/(warn|note:|already)/i.test(t)) el.classList.add('warn');
+}
+const esc = s => s.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'})[c]);
+window.term = {
+  write(s) {
+    if (out.querySelector('.ascii')) out.innerHTML = '';
+    const stick = out.scrollTop + out.clientHeight >= out.scrollHeight - 30;
+    for (const tok of s.split(/(\r\n|\n|\r)/)) {
+      if (tok === '\n' || tok === '\r\n') { if (cur) classify(cur); line(); cr = false; }
+      else if (tok === '\r') cr = true;
+      else if (tok) { if (!cur) line(); if (cr) { cur.textContent = ''; cr = false; } cur.textContent += tok; }
+    }
+    while (out.childElementCount > 4000) out.firstChild.remove();
+    if (stick) out.scrollTop = out.scrollHeight;
+  },
+  exit(code) {
+    if (cur) classify(cur);
+    running = false; clearInterval(timer);
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    status(code === 0 ? 'done' : 'failed', code === 0 ? '' : 'bad', `${secs}s · exit ${code}`);
+    line(code === 0 ? 'dimln' : 'err').textContent = code === 0 ? `── finished in ${secs}s ──` : `── exited with code ${code} ──`;
+    out.scrollTop = out.scrollHeight; cur = null;
+    toast(code === 0 ? 'Done ✓' : `Failed (exit ${code}) — see terminal`, code !== 0);
+    if (after) { const f = after; after = null; f(code); }
+  },
+};
+function status(t, cls, el) {
+  $('st').className = 'st ' + (cls || ''); $('st-t').textContent = t; $('el').textContent = el || '';
+  $('st').querySelector('.dot').className = 'dot' + (cls === 'run' ? ' on' : '');
+}
+async function run(args, then, secrets) {
+  if (running) return toast('Something is already running — stop it first', true);
+  const r = await api().run(args.map(String), secrets || null);
+  if (r === 'busy') return toast('Something is already running — stop it first', true);
+  running = true; after = then || null; t0 = Date.now();
+  if (out.querySelector('.ascii')) out.innerHTML = '';
+  line('cmd').textContent = '$ multit ' + args.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ');
+  line(); status('running', 'run', '0.0s');
+  clearInterval(timer); timer = setInterval(() => $('el').textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's', 100);
+}
+function copyOut() { navigator.clipboard.writeText(out.innerText); toast('Copied terminal output'); }
+function toast(msg, err) {
+  const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : '');
+  t.innerHTML = `<i>${err ? '!' : '✓'}</i><span>${esc(msg)}</span>`; $('toasts').appendChild(t);
+  setTimeout(() => { t.style.transition = '.3s'; t.style.opacity = 0; setTimeout(() => t.remove(), 300); }, 3200);
+}
+// resizable terminal
+$('drag').onmousedown = e => {
+  const main = document.querySelector('main'), r = main.getBoundingClientRect();
+  const mv = ev => main.style.setProperty('--term-h', Math.min(Math.max(r.bottom - ev.clientY, 120), r.height - 200) + 'px');
+  const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
+  addEventListener('mousemove', mv); addEventListener('mouseup', up); e.preventDefault();
+};
+addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'l') { e.preventDefault(); clearOut(); } });
+
+/* ---------- pickers ---------- */
+async function pickInto(id, kind) { const p = await api().pick(kind); if (p) { $(id).value = p; $(id).dispatchEvent(new Event('change')); } return p; }
+
+/* ---------- build ---------- */
+const LANGS = { python: ['PY', 'Python'], node: ['JS', 'Node.js'], go: ['GO', 'Go'], rust: ['RS', 'Rust'], csharp: ['C#', 'C#'], c: ['C', 'C'],
+                cpp: ['C++', 'C++'], cmake: ['CM', 'CMake'], java: ['JV', 'Java'], maven: ['MV', 'Maven'], gradle: ['GR', 'Gradle'] };
+$('langchips').innerHTML = Object.values(LANGS).map(l => `<span class="chip">${l[1]}</span>`).join('');
+async function pickBuild(kind) {
+  const p = await pickInto('b-path', kind); if (!p) return;
+  const d = await api().detect(p);
+  if (d.error) { toast(d.error, true); return; }
+  const [badge, name] = LANGS[d.lang];
+  $('b-lang').textContent = badge; $('b-langname').textContent = name + ' project';
+  $('b-root').textContent = d.root; $('b-entry').textContent = '→ ' + d.entry;
+  $('zone-empty').classList.add('hide'); $('zone-full').classList.remove('hide'); $('zone').classList.add('has');
+  document.querySelectorAll('#langchips .chip').forEach(c => c.classList.toggle('on', c.textContent === name));
+}
+function doBuild() {
+  if (!v('b-path')) return toast('Choose a project first', true);
+  run(['build', v('b-path'), ...opt(v('b-name'), '-n'), ...opt(v('b-out'), '-o'), ...opt(v('b-icon'), '--icon'),
+       ...($('b-gui').checked ? ['--gui'] : []), ...($('b-venv').checked ? ['--venv'] : [])]);
+}
+
+/* ---------- VMs ---------- */
+function rng(el, unit) { el.style.setProperty('--pct', (el.value - el.min) / (el.max - el.min) * 100 + '%'); $('rv-' + el.id.slice(3)).textContent = el.value + ' ' + unit; }
+rng($('vm-ram'), 'GB'); rng($('vm-cpu'), 'cores'); rng($('vm-disk'), 'GB');
+$('vm-prov').onclick = e => { if (e.target.dataset.v === undefined) return; $('vm-prov').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.target)); };
+const prov = () => $('vm-prov').querySelector('.on').dataset.v;
+function osChanged() {
+  const k = $('vm-os').value; $('vm-isorow').classList.toggle('hide', k !== '__custom');
+  if (k !== '__custom' && (!v('vm-name') || $('vm-name').dataset.auto)) { $('vm-name').value = k; $('vm-name').dataset.auto = 1; }
+  if (/^windows/.test(k) && +$('vm-disk').value < 64) { $('vm-disk').value = 64; rng($('vm-disk'), 'GB'); }
+}
+$('vm-name').oninput = () => delete $('vm-name').dataset.auto;
+function vmCreate() {
+  const os = $('vm-os').value, iso = os === '__custom' ? v('vm-iso') : os;
+  if (!iso) return toast('Pick an OS or an ISO file', true);
+  if (!v('vm-name')) return need('vm-name');
+  run(['vm', 'create', v('vm-name'), '--iso', iso, '--mem', $('vm-ram').value * 1024, '--cpus', $('vm-cpu').value, '--disk', $('vm-disk').value,
+       '--user', v('vm-user') || 'user', ...opt(v('vm-pass'), '--password'), ...($('vm-headless').checked ? ['--headless'] : []),
+       ...($('vm-dev').checked ? ['--dev'] : []), ...opt(prov())], loadVMs);
+}
+const pflag = p => p === 'VMware' ? '--vmware' : '--vbox';
+function vmOp(i, op) {
+  const m = VMS[i], base = ['vm', op, m.name];
+  if (op === 'snap' || op === 'restore') { const l = prompt(op === 'snap' ? 'Snapshot name' : 'Restore which snapshot?', 'snap'); if (!l) return; base.push(l); }
+  if (op === 'delete') { if (!confirm(`Permanently delete "${m.name}" and its disk?`)) return; base.push('--yes'); }
+  if (op === 'devtools') {
+    if (!m.running) return toast('Start the VM and log in first', true);
+    const u = prompt(`Install Python + coder essentials into "${m.name}".\n\nGuest login user:`, v('vm-user') || 'user'); if (!u) return;
+    const pw = prompt(`Password for ${u} inside the VM:`); if (!pw) return;
+    base.push('--user', u, '--password', pw);
+  }
+  run([...base, pflag(m.provider)], () => setTimeout(loadVMs, 1500));
+}
+let VMS = [];
+async function loadVMs() {
+  VMS = await api().vms();
+  const ops = (i, m) => (m.running ? `<span class="btn s d" title="stop" onclick="vmOp(${i},'stop')">■</span>` : `<span class="btn s" title="start" onclick="vmOp(${i},'start')">▶</span>`) +
+    `<span class="btn s" title="install Python + coder essentials inside this VM" onclick="vmOp(${i},'devtools')">dev</span><span class="btn s" title="snapshot" onclick="vmOp(${i},'snap')">snap</span><span class="btn s" title="restore snapshot" onclick="vmOp(${i},'restore')">⟲</span><span class="btn s d" title="delete" onclick="vmOp(${i},'delete')">✕</span>`;
+  $('vmlist').innerHTML = VMS.length ? VMS.map((m, i) => `<div class="vm"><span class="dot ${m.running ? 'on' : ''}"></span>
+    <div class="n"><b>${esc(m.name)}</b><small>${m.provider} · ${m.running ? 'running' : 'stopped'}</small></div><div class="ops">${ops(i, m)}</div></div>`).join('')
+    : '<div class="empty">no machines yet — create one on the left</div>';
+}
+
+/* ---------- ISOs ---------- */
+let ISOS = [], isoFilter = 'All';
+const fam = k => /^windows/.test(k) ? 'Windows' : /server|proxmox|centos|rocky|alma/.test(k) ? 'Server' : 'Desktop';
+const MONO = { windows11: '11', windows10: '10', 'windows-server': 'WS', 'ubuntu-server': 'US', freebsd: 'BSD', opensuse: 'SU', popos: 'POP', nixos: 'NIX' };
+function drawIsos() {
+  const q = v('iso-q').toLowerCase();
+  $('iso-f').innerHTML = ['All', 'Desktop', 'Server', 'Windows'].map(f => `<button class="chip ${f === isoFilter ? 'on' : ''}" onclick="isoFilter='${f}';drawIsos()">${f}</button>`).join('');
+  $('tiles').innerHTML = ISOS.filter(i => (isoFilter === 'All' || fam(i.key) === isoFilter) && (i.key + i.label).toLowerCase().includes(q)).map(i => `
+    <div class="tile"><div class="top"><div class="mono">${MONO[i.key] || i.key.slice(0, 2).toUpperCase()}</div><div><b>${i.key}</b><small>${esc(i.label)}</small></div></div>
+    <div class="ops"><span class="btn s" onclick="run(['iso','get','${i.key}'])">download</span><span class="btn s p" onclick="newVmFrom('${i.key}')">new vm →</span></div></div>`).join('')
+    || '<div class="empty">nothing matches</div>';
+}
+function newVmFrom(k) { $('vm-os').value = k; $('vm-name').value = ''; osChanged(); show('vms'); $('vm-name').focus(); }
+
+/* ---------- free up space ---------- */
+let JUNKS = [], ADMIN = false;
+const fmt = n => { const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; while (n >= 1024 && i < 4) { n /= 1024; i++; } return (i ? n.toFixed(1) : n) + ' ' + u[i]; };
+async function loadDisks() {
+  const d = await api().disks();
+  $('drives').innerHTML = d.map(x => { const used = 1 - x.free / x.total; return `<div class="drive"><div class="dl">${x.drive}</div>
+    <div class="grow"><div class="bar"><i class="${used > .9 ? 'hot' : ''}" style="width:${used * 100}%"></i></div><small><b>${fmt(x.free)}</b> free of ${fmt(x.total)}</small></div>
+    <div class="pct">${Math.round(used * 100)}%</div></div>`; }).join('');
+  const c = d.find(x => x.drive === 'C:') || d[0];
+  if (c) $('sf-disk').innerHTML = `<div><span>${c.drive} free</span><span style="color:var(--lime)">${fmt(c.free)}</span></div>`;
+}
+async function scanJunk() {
+  $('junk').innerHTML = '<div class="empty">scanning your disk<span class="spin"></span></div>';
+  const r = await api().scan(); ADMIN = r.admin; JUNKS = r.items;
+  const max = Math.max(...JUNKS.map(j => j.size), 1);
+  $('junk').innerHTML = [...new Set(JUNKS.map(j => j.group))].map(g => `<div class="jg">${g}</div>` + JUNKS.filter(j => j.group === g).map(j => `
+    <label class="jrow"><span class="tg"><input type="checkbox" data-k="${j.key}" ${j.default && j.size ? 'checked' : ''} onchange="selTotal()"><i></i></span>
+      <span class="jl">${esc(j.label)}${j.admin && !ADMIN ? '<span class="chip" title="partly skipped unless MultiT runs as admin">admin</span>' : ''}${j.key === 'recycle' ? '<span class="chip warn">permanent</span>' : ''}
+      <span class="jb"><i style="width:${j.size / max * 100}%"></i></span></span>
+      <span class="js ${j.size > 1e8 ? 'big' : ''}">${fmt(j.size)}</span></label>`).join('')).join('');
+  $('adm').innerHTML = ADMIN ? '<span class="chip on">admin ✓</span>' : '<span class="btn s" title="Windows Update / Windows temp need admin" onclick="api().elevate()">restart as admin</span>';
+  selTotal();
+}
+function selTotal() {
+  const keys = [...document.querySelectorAll('#junk input:checked')].map(i => i.dataset.k);
+  $('sel-total').textContent = fmt(JUNKS.filter(j => keys.includes(j.key)).reduce((s, j) => s + j.size, 0));
+  return keys;
+}
+function doClean() {
+  const keys = selTotal();
+  if (!keys.length) return toast('Nothing selected', true);
+  const list = keys.map(k => '• ' + JUNKS.find(j => j.key === k).label).join('\n');
+  if (!confirm(`Delete ${$('sel-total').textContent} of junk?\n\n${list}${keys.includes('recycle') ? '\n\nRecycle Bin contents are gone for good.' : ''}`)) return;
+  run(['cleanup', ...keys], () => { scanJunk(); loadDisks(); });
+}
+
+/* ---------- disk map ---------- */
+const TC = { v: '#ff4fd8', i: '#3ddc6a', a: '#33c7ff', z: '#ffc93c', x: '#b6ff3b', c: '#6f8cff', d: '#ff8a5c', g: '#b07cff', m: '#2ee6c8', p: '#d6d65c', o: '#8b998a' };
+const TN = { v: 'Video', i: 'Images', a: 'Audio', z: 'Archives', x: 'Programs & DLLs', c: 'Code & text', d: 'Documents', g: 'Disk images & VMs', m: 'AI models', p: 'Data, cache & logs', o: 'Other' };
+let VD = null, VIEW = null, HITS = [], DIRR = new Map(), SELN = null, vizDrives = false;
+const joinp = (a, b) => a.replace(/\\$/, '') + '\\' + b;
+function pathOf(n) { const parts = []; for (let x = n; x && x.p; x = x.p) parts.unshift(x.n); return parts.reduce(joinp, VD.root); }
+function prep(n, parent) {
+  n.p = parent;
+  if (!n.c) return;
+  n.tt = {};
+  for (const c of n.c) { prep(c, n); const tt = c.tt || { [c.t]: c.s }; for (const k in tt) n.tt[k] = (n.tt[k] || 0) + tt[k]; }
+  n.t = Object.keys(n.tt).sort((a, b) => n.tt[b] - n.tt[a])[0] || 'o';
+}
+async function vizOpen() {
+  if (!vizDrives) {
+    vizDrives = true;
+    const d = await api().disks();
+    $('viz-root').innerHTML = d.map(x => `<option value="${x.drive}\\">${x.drive}  ·  ${fmt(x.total - x.free)} used</option>`).join('') + '<option value="__pick">Choose folder…</option>';
+  }
+  if (!VD) vizScan(); else drawViz();
+}
+async function vizRootChanged() {
+  if ($('viz-root').value !== '__pick') return;
+  const p = await api().pick('folder');
+  if (!p) { $('viz-root').selectedIndex = 0; return; }
+  const o = document.createElement('option'); o.value = p; o.textContent = p; $('viz-root').insertBefore(o, $('viz-root').lastChild); $('viz-root').value = p;
+}
+window.vizProgress = (n, p) => { $('vizload-n').textContent = `scanning… ${n.toLocaleString()} files`; $('vizload-p').textContent = p; };
+async function vizScan() {
+  const root = $('viz-root').value; if (!root || root === '__pick') return;
+  $('vizload').className = 'vizload'; $('vizload').style.display = ''; vizProgress(0, root);
+  const t0 = Date.now();
+  VD = await api().viz(root, $('viz-sys').checked);
+  prep(VD.tree, null); VIEW = VD.tree; SELN = null;
+  $('vizload').style.display = 'none';
+  const hidden = VD.used ? VD.used - VD.tree.s : 0;
+  $('viz-status').innerHTML = `<b>${VD.files.toLocaleString()}</b> files · <b>${fmt(VD.tree.s)}</b> mapped in ${((Date.now() - t0) / 1000).toFixed(0)}s` +
+    (hidden > 1e9 ? ` · <b>${fmt(hidden)}</b> not shown (${$('viz-sys').checked ? 'unreadable / locked by Windows' : 'Windows, Program Files, ProgramData & system files'})` : '');
+  drawViz(); vizSide();
+}
+function layout(nodes, x, y, w, h) {  // squarified treemap
+  const out = [], total = nodes.reduce((s, n) => s + n.s, 0);
+  if (total <= 0 || w <= 0 || h <= 0) return out;
+  const k = w * h / total, rest = nodes.slice();
+  while (rest.length) {
+    const vert = w >= h, side = vert ? h : w, row = [];
+    let sum = 0, mx = 0, mn = Infinity, worst = Infinity;
+    while (rest.length) {
+      const a = rest[0].s * k, s2 = sum + a, nx = Math.max(mx, a), nn = Math.min(mn, a);
+      const wr = Math.max(side * side * nx / (s2 * s2), (s2 * s2) / (side * side * nn));
+      if (row.length && wr > worst) break;
+      row.push(rest.shift()); sum = s2; mx = nx; mn = nn; worst = wr;
+    }
+    const thick = sum / side; let off = 0;
+    for (const n of row) { const len = n.s * k / thick; out.push(vert ? { n, x, y: y + off, w: thick, h: len } : { n, x: x + off, y, w: len, h: thick }); off += len; }
+    if (vert) { x += thick; w -= thick; } else { y += thick; h -= thick; }
+  }
+  return out;
+}
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = n >> 8 & 255, b = n & 255;
+  if (f > 1) { const t = f - 1; r += (255 - r) * t; g += (255 - g) * t; b += (255 - b) * t; } else { r *= f; g *= f; b *= f; }
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+const GRAD = {};
+function cushion(ctx, x, y, w, h, t) {  // elliptical "cushion" like WinDirStat: gradient in a unit square, scaled to the block
+  const col = TC[t] || TC.o;
+  if (w < 3 || h < 3) { ctx.fillStyle = shade(col, .8); ctx.fillRect(x, y, w, h); return; }
+  if (!GRAD[t]) { const g = ctx.createRadialGradient(-.25, -.3, 0, 0, 0, 1.42); g.addColorStop(0, shade(col, 1.55)); g.addColorStop(.45, col); g.addColorStop(1, shade(col, .28)); GRAD[t] = g; }
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(w / 2, h / 2); ctx.fillStyle = GRAD[t]; ctx.fillRect(-1, -1, 2, 2); ctx.restore();
+}
+function drawViz() {
+  if (!VIEW) return;
+  const box = $('vizbox'), cv = $('viz'), W = box.clientWidth, H = box.clientHeight, dpr = devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#030503'; ctx.fillRect(0, 0, W, H);
+  HITS = []; DIRR = new Map();
+  (function rec(n, x, y, w, h, depth) {
+    if (!n.c || !n.c.length || w * h < 40 || w < 4 || h < 4) { cushion(ctx, x, y, w, h, n.t); HITS.push({ n, x, y, w, h }); return; }
+    DIRR.set(n, { x, y, w, h });
+    for (const r of layout(n.c.filter(c => c.s > 0), x, y, w, h)) rec(r.n, r.x, r.y, r.w, r.h, depth + 1);
+    if (depth > 0 && depth < 3 && w > 8 && h > 8) { ctx.strokeStyle = `rgba(0,0,0,${depth === 1 ? .8 : .45})`; ctx.lineWidth = depth === 1 ? 2 : 1; ctx.strokeRect(x + .5, y + .5, w - 1, h - 1); }
+  })(VIEW, 0, 0, W, H, 0);
+  // breadcrumbs
+  const chain = []; for (let x = VIEW; x; x = x.p) chain.unshift(x);
+  $('viz-crumbs').innerHTML = chain.map((n, i) => `<a onclick="vizZoomTo(${i})">${esc(i ? n.n : VD.root)}</a>`).join('<span>›</span>') + `<span style="margin-left:10px">${fmt(VIEW.s)}</span>`;
+  vizZoomTo.chain = chain;
+  placeBox($('vizsel'), SELN);
+}
+function vizZoomTo(i) { VIEW = vizZoomTo.chain[i]; drawViz(); vizSide(); }
+function hitAt(e) { const r = $('viz').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return [HITS.find(h => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h), x, y]; }
+function rectOf(n) { return DIRR.get(n) || HITS.find(h => h.n === n); }
+function placeBox(el, n) {
+  const r = n && rectOf(n);
+  if (!r) return el.style.display = 'none';
+  Object.assign(el.style, { display: 'block', left: r.x + 'px', top: r.y + 'px', width: Math.max(r.w, 3) + 'px', height: Math.max(r.h, 3) + 'px' });
+}
+$('viz').onmousemove = e => {
+  const [h, x, y] = hitAt(e), tip = $('viztip');
+  if (!h) { tip.style.display = 'none'; $('vizhl').style.display = 'none'; $('vizdir').style.display = 'none'; return; }
+  placeBox($('vizhl'), h.n); placeBox($('vizdir'), h.n.p !== VIEW ? h.n.p : null);
+  const kind = h.n.c || h.n.k ? 'folder' : h.n.a ? 'merged small items' : TN[h.n.t];
+  tip.innerHTML = `<b>${esc(h.n.n)}</b><span class="sw" style="background:${TC[h.n.t]}"></span>${fmt(h.n.s)} · ${(h.n.s / VIEW.s * 100).toFixed(1)}% · ${kind}<small>${esc(pathOf(h.n.a ? h.n.p : h.n))}</small>`;
+  tip.style.display = 'block';
+  const bw = $('vizbox').clientWidth, bh = $('vizbox').clientHeight;
+  tip.style.left = Math.min(x + 16, bw - tip.offsetWidth - 8) + 'px'; tip.style.top = (y + 18 + tip.offsetHeight > bh ? y - tip.offsetHeight - 12 : y + 18) + 'px';
+};
+$('viz').onmouseleave = () => { $('viztip').style.display = 'none'; $('vizhl').style.display = 'none'; $('vizdir').style.display = 'none'; };
+$('viz').onclick = e => { const [h] = hitAt(e); if (h) vizSelect(h.n); };
+$('viz').ondblclick = e => {
+  const [h] = hitAt(e); if (!h) return;
+  let n = h.n; while (n.p && n.p !== VIEW) n = n.p;  // the top-level block under the current view
+  if (n.c && n.c.length) { VIEW = n; drawViz(); vizSide(); } else if (n.k) toast('Folder too small to map — open it in Explorer');
+};
+addEventListener('keydown', e => {
+  if (!$('p-viz').classList.contains('on') || document.activeElement.tagName === 'INPUT') return;
+  if (e.key === 'Backspace' && VIEW && VIEW.p) { e.preventDefault(); VIEW = VIEW.p; drawViz(); vizSide(); }
+  if (e.key === 'Escape') { SELN = null; placeBox($('vizsel'), null); vizSide(); }
+});
+let vizRT; addEventListener('resize', () => { clearTimeout(vizRT); vizRT = setTimeout(() => $('p-viz').classList.contains('on') && drawViz(), 120); });
+function vizSelect(n) { SELN = n; placeBox($('vizsel'), n); vizSide(); }
+function vizSide() {
+  if (!VIEW) return;
+  // selection
+  const n = SELN;
+  if (n) {
+    const real = !n.a, path = pathOf(real ? n : n.p);
+    $('viz-sel').innerHTML = `<div class="selname">${esc(n.n)}</div><div class="selpath">${esc(path)}</div>
+      <div class="selsize">${fmt(n.s)}<small>${(n.s / VD.tree.s * 100).toFixed(2)}% of map · ${n.c || n.k ? 'folder' : TN[n.t]}</small></div>
+      <div class="actions" style="margin-top:14px">
+        ${n.p && n.p !== VIEW ? `<span class="btn s" onclick="VIEW=SELN.p;drawViz();vizSide()">zoom to folder</span>` : ''}
+        <span class="btn s" onclick="api().reveal(pathOf(SELN.a ? SELN.p : SELN))">open in explorer</span>
+        ${real ? `<span class="btn s d" onclick="vizRecycle()">recycle</span>` : ''}</div>`;
+  } else $('viz-sel').innerHTML = '<div class="empty">click a block · double-click to zoom in · backspace to zoom out</div>';
+  // legend
+  const tt = VIEW.tt || { [VIEW.t]: VIEW.s }, ks = Object.keys(tt).sort((a, b) => tt[b] - tt[a]), top = tt[ks[0]] || 1;
+  $('viz-legend').innerHTML = ks.map(k => `<div class="lg"><i style="background:${TC[k]}"></i><span>${TN[k]}</span><div class="bar"><i style="width:${tt[k] / top * 100}%;background:${TC[k]};box-shadow:none"></i></div><em>${fmt(tt[k])}</em></div>`).join('');
+  // biggest files
+  const files = [];
+  (function walk(x) { if (x.c) x.c.forEach(walk); else if (!x.a && !x.k) files.push(x); })(VIEW);
+  files.sort((a, b) => b.s - a.s);
+  vizSide.top = files.slice(0, 14);
+  $('viz-top').innerHTML = vizSide.top.map((f, i) => `<div class="tf" onclick="vizSelect(vizSide.top[${i}])" title="${esc(pathOf(f))}"><i style="background:${TC[f.t]}"></i><span>${esc(f.n)}</span><em>${fmt(f.s)}</em></div>`).join('') || '<div class="empty">no big files here</div>';
+}
+async function vizRecycle() {
+  const n = SELN, path = pathOf(n);
+  if (!confirm(`Move to the Recycle Bin?\n\n${path}\n${fmt(n.s)}\n\nYou can restore it from the Recycle Bin.`)) return;
+  const r = await api().recycle(path);
+  if (!r.ok) return toast(r.error || 'Could not recycle (in use or no permission)', true);
+  n.p.c = n.p.c.filter(x => x !== n);
+  const tt = n.tt || { [n.t]: n.s };
+  for (let x = n.p; x; x = x.p) { x.s -= n.s; for (const k in tt) x.tt[k] -= tt[k]; }
+  SELN = null; toast(`Recycled ${fmt(n.s)} — ${n.n}`); drawViz(); vizSide(); loadDisks();
+}
+
+let HOME = '';
+const copyText = t => { navigator.clipboard.writeText(t); toast('Copied'); };
+const onPage = p => $('p-' + p).classList.contains('on');
+
+/* ---------- system monitor ---------- */
+let MON = null, LAST = null, PROCT = 0;
+const HIST = { cpu: [], ram: [], disk: [], net: [] };
+const rate = n => fmt(Math.max(0, n)) + '/s';
+function monStart() { if (!MON) { monTick(); MON = setInterval(monTick, 1000); } }
+function spark(id, arr, max) {
+  const cv = $(id), W = cv.clientWidth, H = cv.clientHeight, dpr = devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext('2d'); c.scale(dpr, dpr);
+  if (arr.length < 2) return;
+  const m = max || Math.max(...arr, 1), step = W / 59, pts = arr.map((v, i) => [W - (arr.length - 1 - i) * step, H - 4 - v / m * (H - 10)]);
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(182,255,59,.35)'); g.addColorStop(1, 'rgba(182,255,59,0)');
+  c.beginPath(); c.moveTo(pts[0][0], H); pts.forEach(p => c.lineTo(...p)); c.lineTo(W, H); c.fillStyle = g; c.fill();
+  c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(...p) : c.moveTo(...p)); c.strokeStyle = '#b6ff3b'; c.lineWidth = 1.8; c.shadowColor = '#b6ff3b'; c.shadowBlur = 8; c.stroke();
+}
+const push = (k, v) => { HIST[k].push(v); if (HIST[k].length > 60) HIST[k].shift(); };
+async function monTick() {
+  if (!onPage('monitor')) { clearInterval(MON); MON = null; LAST = null; return; }
+  const s = await api().stats();
+  push('cpu', s.cpu); push('ram', s.ram);
+  $('m-cpu').textContent = s.cpu.toFixed(0) + '%'; $('m-cpu2').textContent = s.cores.length + ' threads';
+  $('m-ram').textContent = s.ram.toFixed(0) + '%'; $('m-ram2').textContent = `${fmt(s.ram_used)} of ${fmt(s.ram_total)}`;
+  if (LAST) {
+    const dt = s.t - LAST.t, r = (s.disk_r - LAST.disk_r) / dt, w = (s.disk_w - LAST.disk_w) / dt, rx = (s.net_rx - LAST.net_rx) / dt, tx = (s.net_tx - LAST.net_tx) / dt;
+    push('disk', r + w); push('net', rx + tx);
+    $('m-disk').textContent = rate(r + w); $('m-disk2').textContent = `read ${rate(r)} · write ${rate(w)}`;
+    $('m-net').textContent = rate(rx + tx); $('m-net2').textContent = `↓ ${rate(rx)} · ↑ ${rate(tx)}`;
+  }
+  LAST = s;
+  spark('g-cpu', HIST.cpu, 100); spark('g-ram', HIST.ram, 100); spark('g-disk', HIST.disk); spark('g-net', HIST.net);
+  if ($('m-cores').childElementCount !== s.cores.length) $('m-cores').innerHTML = s.cores.map(() => '<i></i>').join('');
+  [...$('m-cores').children].forEach((el, i) => { el.style.setProperty('--v', s.cores[i] + '%'); el.title = `thread ${i}: ${s.cores[i].toFixed(0)}%`; });
+  const up = s.uptime, d = Math.floor(up / 86400), h = Math.floor(up % 86400 / 3600), mi = Math.floor(up % 3600 / 60);
+  $('m-up').textContent = 'up ' + (d ? d + 'd ' : '') + h + 'h ' + mi + 'm';
+  if (Date.now() - PROCT > 2000) { PROCT = Date.now(); drawProcs(await api().procs($('m-sort').querySelector('.on').dataset.v)); }
+}
+$('m-sort').onclick = e => { if (e.target.dataset.v === undefined) return; $('m-sort').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.target)); PROCT = 0; };
+let PROCS = [];
+function drawProcs(rows) {
+  PROCS = rows; const maxMem = Math.max(...rows.map(r => r.mem), 1);
+  $('m-procs').innerHTML = `<div class="prow" style="color:var(--dim);font-size:10.5px;letter-spacing:.12em">PROCESS<span>CPU</span><span class="pm">RAM</span><span></span></div>` +
+    rows.map((r, i) => `<div class="prow"><div class="pn">${esc(r.name)}${r.pids.length > 1 ? `<small>×${r.pids.length}</small>` : ''}</div>
+      <div class="pc"><div class="bar"><i style="width:${Math.min(r.cpu, 100)}%"></i></div><span>${r.cpu.toFixed(1)}%</span></div>
+      <div class="pm" title="${(r.mem / maxMem * 100).toFixed(0)}% of top">${fmt(r.mem)}</div>
+      ${r.critical ? '<span class="lock" title="Windows needs this — locked">locked</span>' : `<span class="btn s d" onclick="killProc(${i})">kill</span>`}</div>`).join('');
+}
+async function killProc(i) {
+  const r = PROCS[i];
+  if (!confirm(`Kill ${r.name}${r.pids.length > 1 ? ` (all ${r.pids.length} processes)` : ''}?\n\nUnsaved work in it will be lost.`)) return;
+  const res = await api().kill(r.name);
+  res.ok ? toast(`Killed ${res.n} × ${r.name}`) : toast(res.error, true); PROCT = 0;
+}
+
+/* ---------- startup apps ---------- */
+let STARTUP = [];
+async function loadStartup() { STARTUP = await api().startup(); drawStartup(); }
+function drawStartup() {
+  const q = v('st-q').toLowerCase(), list = STARTUP.filter(s => !q || (s.name + s.cmd).toLowerCase().includes(q));
+  $('st-count').textContent = `${STARTUP.filter(s => s.enabled).length} of ${STARTUP.length} enabled`;
+  $('st-list').innerHTML = list.map(s => `<div class="srow ${s.enabled ? '' : 'off'}">
+    <label class="tg"><input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleStartup(${STARTUP.indexOf(s)}, this)"><i></i></label>
+    <div class="sn"><b>${esc(s.name)}</b><small title="${esc(s.cmd)}">${esc(s.cmd)}</small></div>
+    <span class="chip">${s.where}</span>${s.admin ? '<span class="chip" title="all users — needs admin">admin</span>' : ''}</div>`).join('') || '<div class="empty">nothing here</div>';
+}
+async function toggleStartup(i, box) {
+  const r = await api().set_startup(STARTUP[i].id, box.checked);
+  if (!r.ok) { box.checked = !box.checked; return toast(r.error, true); }
+  STARTUP[i].enabled = box.checked; drawStartup();
+  toast(`${box.checked ? 'Enabled' : 'Disabled'} — takes effect next sign-in`);
+}
+
+/* ---------- USB encrypt ---------- */
+let USBS = [], PWM = null;
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const OPEN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.8-1.2"/></svg>';
+async function loadUsb() {
+  USBS = await api().usb_list();
+  $('usb-count').textContent = USBS.length ? `${USBS.length} USB drive${USBS.length > 1 ? 's' : ''} connected` : '';
+  drawUsb();
+  USBS.forEach(async (d, i) => { Object.assign(d, await api().usb_status(d.root), { counted: 1 }); drawUsb(); });  // counting files can take a while
+}
+function drawUsb() {
+  $('usb-list').innerHTML = USBS.map((d, i) => {
+    const used = d.total - d.free, locked = d.counted && d.locked && !d.plain, partial = d.counted && d.locked && d.plain;
+    const state = !d.counted ? '<span class="spin"></span> counting files…' : locked ? `<span class="chip on">LOCKED · ${d.locked.toLocaleString()} files</span>`
+      : partial ? `<span class="chip warn">partly locked · ${d.locked.toLocaleString()} locked, ${d.plain.toLocaleString()} open</span>` : `<span class="chip">unlocked · ${d.plain.toLocaleString()} files</span>`;
+    return `<div class="usb ${locked ? 'locked' : ''}"><div class="top"><div class="dl">${d.drive}${locked ? LOCK_SVG : OPEN_SVG}</div>
+      <div><b>${esc(d.label || 'USB drive')}</b><small>${esc(d.name)} · ${fmt(d.total)}</small></div></div>
+      <div><div class="bar"><i style="width:${used / d.total * 100}%"></i></div><small class="tcount">${fmt(used)} used · ${fmt(d.free)} free</small></div>
+      <div>${state}</div>
+      <div class="ops">${d.counted && d.plain ? `<span class="btn p" onclick="usbAsk(${i},'lock')">${LOCK_SVG}${d.locked ? 'lock the rest' : 'lock drive'}</span>` : ''}
+        ${d.counted && d.locked ? `<span class="btn ${d.plain ? '' : 'p'}" onclick="usbAsk(${i},'unlock')">${OPEN_SVG}unlock</span>` : ''}
+        ${d.vault ? `<span class="btn s" onclick="usbAsk(${i},'passwd')">change password</span>` : ''}
+        <span class="btn s" title="measure real write/read speed (writes a 128 MB test file, then deletes it) and estimate lock time" onclick="run(['usb','speed',USBS[${i}].drive])">speed test</span>
+        <span class="btn s" onclick="api().reveal(USBS[${i}].root)">open</span></div></div>`;
+  }).join('') || '<div class="empty">no USB drives connected — plug one in and hit refresh</div>';
+}
+function usbAsk(i, action) {
+  const d = USBS[i], fresh = !d.vault;
+  openPw({ action, fresh: action === 'lock' && fresh, cmd: ['usb', action, d.drive], done: loadUsb, what: d.drive,
+    title: { lock: `Lock ${d.drive}`, unlock: `Unlock ${d.drive}`, passwd: 'Change password' }[action],
+    sub: { lock: fresh ? `Encrypt all ${fmt(d.total - d.free)} on ${d.label || d.name} with a new password. Speed depends on the drive — the terminal shows live progress, speed and time left. Don't unplug until it's done.`
+                       : `Encrypt the ${d.plain} unlocked files with this drive's password.`,
+           unlock: 'Decrypt every file back to its original name.', passwd: 'Files stay encrypted — only the key\'s wrapper changes, so this is instant.' }[action] });
+}
+function openPw(o) {
+  PWM = o; const action = o.action;
+  $('pwm-title').textContent = o.title; $('pwm-sub').textContent = o.sub;
+  const showNew = PWM.fresh || action === 'passwd';
+  $('pwm-1').parentElement.style.display = PWM.fresh ? 'none' : '';
+  $('pwm-l1').style.display = PWM.fresh ? 'none' : ''; $('pwm-l1').textContent = action === 'passwd' ? 'Current password' : 'Password';
+  $('pwm-newrow').style.display = showNew ? '' : 'none'; $('pwm-l2').textContent = action === 'passwd' ? 'New password' : 'Choose a password';
+  $('pwm-ackrow').style.display = showNew ? '' : 'none';
+  ['pwm-1', 'pwm-2', 'pwm-3'].forEach(id => { $(id).value = ''; $(id).type = 'password'; }); $('pwm-ack').checked = false;
+  $('pwm-go').textContent = { lock: 'Encrypt', unlock: 'Decrypt', passwd: 'Change' }[action];
+  $('pw-modal').classList.remove('hide'); pwCheck(); setTimeout(() => $(PWM.fresh ? 'pwm-2' : 'pwm-1').focus(), 50);
+}
+function pwPeek() { ['pwm-1', 'pwm-2', 'pwm-3'].forEach(id => $(id).type = $(id).type === 'password' ? 'text' : 'password'); }
+function pwCheck() {
+  if (!PWM) return;
+  const showNew = PWM.fresh || PWM.action === 'passwd', np = $('pwm-2').value;
+  let msg = '', ok = true;
+  if (showNew) {
+    const sets = [/[a-z]/, /[A-Z]/, /\d/, /[^a-zA-Z0-9]/].filter(r => r.test(np)).length, bits = np.length * Math.log2([0, 26, 52, 62, 94][sets] || 1);
+    const [w, c, label] = bits < 40 ? [20, 'var(--red)', 'weak'] : bits < 65 ? [55, 'var(--amber)', 'okay'] : bits < 90 ? [80, 'var(--lime2)', 'strong'] : [100, 'var(--lime)', 'very strong'];
+    $('pwm-meter').style.cssText = np ? `width:${w}%;background:${c};box-shadow:0 0 10px ${c}` : 'width:0';
+    $('pwm-strength').textContent = np ? `${label} · ~${Math.round(bits)} bits` : 'at least 8 characters — a few random words works great';
+    if (np.length < 8) { ok = false; }
+    else if (np !== $('pwm-3').value) { ok = false; msg = $('pwm-3').value ? 'passwords don\'t match' : ''; }
+    else if (!$('pwm-ack').checked) ok = false;
+  }
+  if (!PWM.fresh && !$('pwm-1').value) ok = false;
+  $('pwm-msg').textContent = msg; $('pwm-go').classList.toggle('off', !ok);
+}
+function closePw() { $('pw-modal').classList.add('hide'); ['pwm-1', 'pwm-2', 'pwm-3'].forEach(id => $(id).value = ''); PWM = null; }
+function pwGo() {
+  const { action, fresh, cmd, done, what } = PWM;
+  const secrets = action === 'passwd' ? { MULTIT_USB_KEY: $('pwm-1').value, MULTIT_USB_NEWKEY: $('pwm-2').value }
+                                      : { MULTIT_USB_KEY: fresh ? $('pwm-2').value : $('pwm-1').value };
+  closePw();
+  run(cmd, code => { done(); if (!code) toast(action === 'lock' ? `${what} locked 🔒` : action === 'unlock' ? `${what} unlocked` : 'Password changed'); }, secrets);
+}
+addEventListener('keydown', e => { if (PWM && e.key === 'Escape') closePw(); if (PWM && e.key === 'Enter' && !$('pwm-go').classList.contains('off')) pwGo(); });
+
+/* ---------- dashboard ---------- */
+const TI = (icon, label) => `<small><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[icon]}</svg>${label}</small>`;
+let DASHT = null, DASH_SLOW = {};
+async function loadDash() {
+  const d = await api().dash(), used = 1 - d.disk.free / d.disk.total;
+  const lastJob = d.backups.filter(j => j.last).sort((a, b) => b.last - a.last)[0];
+  const tiles = [
+    ['space', TI('space', 'Disk C:'), fmt(d.disk.free), `free of ${fmt(d.disk.total)}`, `<div class="bar"><i class="${used > .9 ? 'hot' : ''}" style="width:${used * 100}%"></i></div>`],
+    ['space', TI('clean', 'Junk to clean'), DASH_SLOW.junk ?? '<span class="spin"></span>', 'temp files, caches, update leftovers'],
+    ['updates', TI('updates', 'App updates'), DASH_SLOW.updates ?? '<span class="spin"></span>', 'apps with a newer version'],
+    ['monitor', TI('monitor', 'CPU · RAM'), '<span id="dash-cpu">–</span>', '<span id="dash-ram">sampling…</span>'],
+    ['boost', TI('boost', 'Game booster'), d.boost ? 'ON' : 'off', d.boost ? `closed ${d.boost.closed.length} app(s)` : 'one click before you play', '', !d.boost],
+    ['backups', TI('backups', 'Backups'), d.backups.length, lastJob ? `last: ${new Date(lastJob.last * 1000).toLocaleDateString()} ${lastJob.last_ok ? '✓' : '✕ failed'}` : 'no runs yet', '', !d.backups.length],
+    ['usb', TI('usb', 'USB drives'), d.usb.length, d.usb.map(u => u.drive + (u.vault ? ' 🔒' : '')).join(' · ') || 'none connected', '', !d.usb.length],
+    ['servers', TI('servers', 'Servers'), `${d.servers.running}/${d.servers.total}`, d.servers.total ? 'running' : 'none set up yet', '', !d.servers.running],
+    ['models', TI('models', 'AI models'), DASH_SLOW.models ?? '<span class="spin"></span>', DASH_SLOW.modelsSub || 'LM Studio, Hugging Face, Ollama…'],
+    ['vaults', TI('vaults', 'Folder vaults'), d.vaults, 'locked folders', '', !d.vaults],
+  ];
+  $('dash').innerHTML = tiles.map(([p, label, big, sub, extra, calm]) => `<div class="tile2" onclick="show('${p}')">${label}<b class="${calm ? 'calm' : ''}">${big}</b><em>${sub}</em>${extra || ''}</div>`).join('');
+  clearInterval(DASHT); DASHT = setInterval(dashTick, 2000); dashTick();
+  if (!DASH_SLOW.started) {  // slow numbers: fetch once per session
+    DASH_SLOW.started = 1;
+    api().scan().then(r => { DASH_SLOW.junk = fmt(r.items.filter(i => i.default).reduce((s, i) => s + i.size, 0)); onPage('home') && loadDash(); });
+    api().upgrades().then(r => { DASH_SLOW.updates = r.length; onPage('home') && loadDash(); });
+    api().models().then(r => { DASH_SLOW.models = fmt(r.apps.reduce((s, a) => s + a.size, 0)); DASH_SLOW.modelsSub = `${r.files.length} models · ${r.files.filter(f => f.dup).length} duplicate files`; onPage('home') && loadDash(); });
+  }
+}
+async function dashTick() {
+  if (!onPage('home')) return clearInterval(DASHT);
+  const s = await api().stats();
+  if ($('dash-cpu')) { $('dash-cpu').textContent = `${s.cpu.toFixed(0)}% · ${s.ram.toFixed(0)}%`; $('dash-ram').textContent = `${fmt(s.ram_used)} of ${fmt(s.ram_total)} RAM in use`; }
+}
+
+/* ---------- command palette ---------- */
+const ACTIONS = [
+  ['Update all apps', 'updates', () => { show('updates'); confirm('Update every app winget can update?') && run(['update', '--all'], loadUpdates); }],
+  ['Run all backups', 'backups', () => { show('backups'); run(['backup', 'run', '--all'], loadBackups); }],
+  ['Disk map — what\'s using space', 'space', () => show('viz')],
+  ['Find duplicates in Downloads', 'dupes', () => { show('dupes'); dupScan(); }],
+  ['Lock a folder…', 'vaults', () => { show('vaults'); vaultAdd(); }],
+  ['Compress a video for Discord…', 'video', async () => { show('video'); if (await pickInto('vi-path', 'file')) videoInfo(); }],
+  ['Boost — get ready to game', 'boost', () => show('boost')],
+  ['New virtual machine', 'vms', () => show('vms')],
+  ['Create a Minecraft server', 'create', () => { show('create'); setTimeout(() => crPick('minecraft'), 100); }],
+  ['Create a FiveM server', 'create', () => { show('create'); setTimeout(() => crPick('fivem'), 100); }],
+  ['Install a dev tool', 'tools', () => { show('tools'); setTimeout(() => $('t-q').focus(), 50); }],
+  ['Clear the terminal', 'clean', () => clearOut()],
+];
+let PAL = [], PALI = 0;
+function openPal() { $('palette').classList.remove('hide'); $('pal-q').value = ''; drawPal(); setTimeout(() => $('pal-q').focus(), 30); }
+function closePal() { $('palette').classList.add('hide'); }
+function fuzzy(q, s) {  // all query chars in order; consecutive + word-start matches score higher
+  let i = 0, score = 0, last = -2, html = '';
+  const lo = s.toLowerCase();
+  for (let j = 0; j < s.length; j++) {
+    if (i < q.length && lo[j] === q[i]) { score += (j === last + 1 ? 3 : 1) + (j === 0 || s[j - 1] === ' ' ? 2 : 0); last = j; i++; html += `<mark>${esc(s[j])}</mark>`; }
+    else html += esc(s[j]);
+  }
+  return i === q.length ? { score: score - s.length * .01, html } : null;
+}
+function drawPal() {
+  const q = v('pal-q').toLowerCase().replace(/\s+/g, ' ');
+  const items = [...NAV.filter(n => typeof n !== 'string').map(([p, label]) => ({ label, icon: p, kind: 'page', go: () => show(p) })),
+                 ...ACTIONS.map(([label, icon, go]) => ({ label, icon, kind: 'action', go }))];
+  PAL = items.map(it => ({ ...it, m: q ? fuzzy(q, it.label) : { score: 0, html: esc(it.label) } })).filter(it => it.m)
+             .sort((a, b) => b.m.score - a.m.score).slice(0, 14);
+  PALI = 0; paintPal();
+}
+function paintPal() {
+  $('pal-list').innerHTML = PAL.map((it, i) => `<div class="pi ${i === PALI ? 'on' : ''}" onmouseenter="PALI=${i};paintPal()" onclick="PALI=${i};runPal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[it.icon] || ''}</svg>${it.m.html}<small>${it.kind}</small></div>`).join('')
+    || '<div class="empty">nothing matches</div>';
+}
+function runPal() { const it = PAL[PALI]; if (!it) return; closePal(); it.go(); }
+addEventListener('keydown', e => {
+  if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); $('palette').classList.contains('hide') ? openPal() : closePal(); return; }
+  if ($('palette').classList.contains('hide')) return;
+  if (e.key === 'Escape') closePal();
+  if (e.key === 'ArrowDown') { e.preventDefault(); PALI = Math.min(PALI + 1, PAL.length - 1); paintPal(); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); PALI = Math.max(PALI - 1, 0); paintPal(); }
+  if (e.key === 'Enter') { e.preventDefault(); runPal(); }
+});
+
+/* ---------- AI models ---------- */
+let MODELS = null, MODEL_EXTRA = null;
+async function loadModels() {
+  $('md-list').innerHTML = '<div class="empty">scanning…<span class="spin"></span></div>';
+  MODELS = await api().models(MODEL_EXTRA);
+  const dupBytes = MODELS.files.filter(f => f.dup).reduce((s, f) => s + f.size, 0) / 2;
+  $('md-count').textContent = `${MODELS.files.length} models · ${fmt(MODELS.apps.reduce((s, a) => s + a.size, 0))} total` + (dupBytes ? ` · ~${fmt(dupBytes)} in duplicates` : '');
+  $('md-apps').innerHTML = MODELS.apps.map(a => `<div class="drive"><div class="dl" style="font-size:15px">${esc(a.app)}</div><div class="grow"><small><b>${fmt(a.size)}</b></small><br><small style="word-break:break-all">${esc(a.root)}</small></div></div>`).join('');
+  $('md-list').innerHTML = MODELS.files.map((f, i) => `<div class="mrow"><div class="mn"><b title="${esc(f.path)}">${esc(f.label)}</b>
+      <small>${esc(f.app)} · ${esc(f.name)}${f.moved ? ` · <span style="color:var(--lime)">lives on ${f.lives_on}</span>` : ''}${f.dup ? ' · <span style="color:var(--amber)">duplicate #' + f.dup + '</span>' : ''}</small></div>
+      <span class="chip">${esc(f.app)}</span><span class="ms">${fmt(f.size)}</span>
+      <div class="ops"><span class="btn s" onclick="api().reveal(MODELS.files[${i}].path)">show</span>
+        ${f.folder && !f.moved ? `<span class="btn s" onclick="modelMove(${i})">move to…</span>` : ''}
+        ${f.moved ? `<span class="btn s" onclick="modelBack(${i})">move back</span>` : ''}
+        ${f.dup && f.folder ? `<span class="btn s d" onclick="modelRecycle(${i})">recycle</span>` : ''}</div></div>`).join('')
+    || '<div class="empty">no models found</div>';
+}
+async function modelsExtra() { const p = await api().pick('folder'); if (p) { MODEL_EXTRA = p; loadModels(); } }
+async function modelMove(i) {
+  const f = MODELS.files[i], dest = await api().pick('folder'); if (!dest) return;
+  if (!confirm(`Move ${f.label} (${fmt(f.size)}) to\n${dest}?\n\nClose ${f.app} first. A link is left behind so ${f.app} still finds it — keep that drive connected when you use the model.`)) return;
+  run(['models', 'move', f.folder, dest], loadModels);
+}
+function modelBack(i) { const f = MODELS.files[i]; if (confirm(`Move ${f.label} back to ${f.app}'s folder?`)) run(['models', 'restore', f.folder], loadModels); }
+async function modelRecycle(i) {
+  const f = MODELS.files[i], twins = MODELS.files.filter(x => x.dup === f.dup && x !== f);
+  if (!confirm(`Recycle this copy of ${f.label}?\n\n${f.folder}\n\nThe same model stays in: ${twins.map(t => t.app).join(', ')}.`)) return;
+  const r = await api().recycle(f.folder); r.ok ? (toast(`Recycled ${fmt(f.size)}`), loadModels()) : toast(r.error || 'Could not recycle (in use?)', true);
+}
+
+/* ---------- video tools ---------- */
+$('vi-size').onclick = e => { if (e.target.dataset.v === undefined) return; $('vi-size').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.target)); $('vi-custom').value = ''; };
+const videoSize = () => v('vi-custom') || $('vi-size').querySelector('.on').dataset.v;
+async function videoFF() {
+  if (VIDEOFF) return; VIDEOFF = 1;
+  const t = await api().tools(), ff = t.find(x => x.key === 'ffmpeg');
+  if (ff && !ff.ok) $('vi-ff').innerHTML = `<div class="warnbox" style="margin-top:16px"><b>!</b><div>FFmpeg isn't installed. <span class="btn s" onclick="run(['install','ffmpeg'])">install it</span></div></div>`;
+}
+let VIDEOFF = 0;
+async function videoInfo() {
+  if (!v('vi-path')) return;
+  const i = await api().video_info(v('vi-path'));
+  $('vi-info').textContent = i.ok ? `${i.width}×${i.height} · ${i.codec} · ${i.fps || '?'} fps · ${Math.floor(i.duration / 60)}:${String(Math.round(i.duration % 60)).padStart(2, '0')} · ${fmt(i.size)}${i.audio ? ' · audio' : ' · no audio'}` : i.error;
+}
+function videoDo(kind) {
+  if (!need('vi-path')) return;
+  const args = ['video', kind, v('vi-path'), ...opt(v('vi-start'), '--start'), ...opt(v('vi-end'), '--end')];
+  if (kind === 'compress') args.push('--size', videoSize());
+  run(args, code => { if (!code) toast('Saved next to the original'); });
+}
+
+/* ---------- servers ---------- */
+let SERVERS = [], SVSEL = null, SVT = null;
+async function loadServers() {
+  SERVERS = await api().servers();
+  if (!SVSEL && SERVERS.length) SVSEL = SERVERS[0].name;
+  $('sv-list').innerHTML = SERVERS.map((s, i) => {
+    const up = s.uptime ? `${Math.floor(s.uptime / 3600)}h ${Math.floor(s.uptime % 3600 / 60)}m` : '';
+    return `<div class="usb srv ${s.running ? 'locked' : ''} ${s.name === SVSEL ? 'sel' : ''}" onclick="SVSEL=SERVERS[${i}].name;loadServers();svLog()">
+      <div class="top"><span class="dot ${s.running ? 'on' : ''}"></span><div style="min-width:0;flex:1"><b>${esc(s.name)}</b><small style="word-break:break-all">${esc(s.cmd)}</small></div>
+        <span class="chip ${s.running ? 'on' : s.status === 'gave up' ? 'warn' : ''}">${s.running ? 'running' : esc(s.status)}</span></div>
+      ${s.running ? `<div class="stats"><span>up <b>${up}</b></span><span>CPU <b>${(s.cpu || 0).toFixed(1)}%</b></span><span>RAM <b>${fmt(s.mem || 0)}</b></span><span>restarts <b>${s.restarts}</b></span><span>pid <b>${s.pid}</b></span></div>` : ''}
+      <div class="ops" onclick="event.stopPropagation()">${s.running ? `<span class="btn s d" onclick="svDo(${i},'stop')">stop</span><span class="btn s" onclick="svDo(${i},'restart')">restart</span>`
+                                                 : `<span class="btn s p" onclick="svDo(${i},'start')">start</span>`}
+        ${s.running && s.open ? `<span class="btn s" onclick="api().open(SERVERS[${i}].open)">open ${s.framework === 'txadmin' ? 'txAdmin' : 'in browser'} ↗</span>` : ''}
+        ${s.cwd ? `<span class="btn s" onclick="api().reveal(SERVERS[${i}].cwd)">folder</span>` : ''}<span class="btn s d" onclick="svDo(${i},'remove')">remove</span>
+        ${s.port ? `<span class="tcount" style="margin-left:auto;align-self:center">port ${s.port}</span>` : ''}</div></div>`;
+  }).join('') || '<div class="empty">no servers yet — add one below</div>';
+}
+async function svSend() {
+  if (!SVSEL || !v('sv-in')) return;
+  const r = await api().server_send(SVSEL, v('sv-in'));
+  if (!r.ok) return toast(r.error, true);
+  $('sv-in').value = ''; setTimeout(svLog, 700);
+}
+async function svDo(i, action) {
+  const s = SERVERS[i];
+  if (action === 'stop' || action === 'restart') toast(s.stop_cmd ? `Asking ${s.name} to save and shut down…` : `Stopping ${s.name}…`);
+  if (action === 'remove' && !confirm(`Remove ${s.name}?${s.running ? ' It will be stopped.' : ''}\n\nIts files and log are untouched.`)) return;
+  const r = await api().server_do(s.name, action);
+  r.ok ? toast(`${s.name}: ${action === 'stop' ? 'stopped' : action === 'remove' ? 'removed' : action + 'ed'}`) : toast(r.error, true);
+  setTimeout(loadServers, 600);
+}
+async function svLog() {
+  if (!SVSEL) return;
+  $('sv-logname').textContent = SVSEL;
+  const box = $('sv-log'), stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  box.textContent = (await api().server_log(SVSEL)) || '(no output yet)';
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+function svPoll() { clearInterval(SVT); SVT = setInterval(() => { if (!onPage('servers')) return clearInterval(SVT); svLog(); loadServers(); }, 2000); svLog(); }
+function svPreset(k) {
+  const P = { fivem: ['fivem', '"C:\\FXServer\\FXServer.exe" +exec server.cfg', 'C:\\FXServer\\server-data'],
+              node: ['node-app', 'node server.js', ''], python: ['py-app', 'python app.py', ''] }[k];
+  $('sv-name').value = P[0]; $('sv-cmd').value = P[1]; $('sv-cwd').value = P[2]; $('sv-cmd').focus();
+  toast('Fill in your real paths, then save');
+}
+async function svSave() {
+  const r = await api().server_save({ name: v('sv-name'), cmd: v('sv-cmd'), cwd: v('sv-cwd'), restart: $('sv-restart').checked });
+  if (!r.ok) return toast(r.error, true);
+  SVSEL = v('sv-name'); toast('Saved — hit start'); ['sv-name', 'sv-cmd', 'sv-cwd'].forEach(id => $(id).value = ''); loadServers(); svLog();
+}
+
+/* ---------- server creator ---------- */
+const PLAT_ART = {
+  minecraft: '<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/><path d="M6 10.5v3M9 12v3M15 12v3M18 10.5v3" opacity=".6"/>',
+  fivem: '<path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/><path d="M5 12h14"/>',
+  steam: '<rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4"/><circle cx="15" cy="12" r="1"/><circle cx="18" cy="10" r="1"/>',
+  terraria: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/>',
+  discord: '<rect x="4" y="7" width="16" height="12" rx="4"/><circle cx="9" cy="13" r="1.3"/><circle cx="15" cy="13" r="1.3"/><path d="M12 7V4M10 4h4"/>',
+  web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+};
+const PLAT_GLOW = { minecraft: 'rgba(98,200,60,.28)', fivem: 'rgba(255,150,40,.25)', steam: 'rgba(80,150,255,.25)', terraria: 'rgba(40,220,190,.22)',
+                    discord: 'rgba(120,110,255,.25)', web: 'rgba(182,255,59,.2)' };
+const FW_NOTE = {
+  'fivem/txadmin': 'Recommended. After starting, open txAdmin (link in the Server panel); the setup PIN appears in the console. Pick ESX Legacy, QBCore or Qbox — txAdmin installs the framework and its database for you.',
+  'fivem/esx': 'Core only: downloads ESX + oxmysql + ox_lib and writes server.cfg. You still need a MySQL/MariaDB database and the rest of the resources — txAdmin setup does that automatically.',
+  'fivem/qbcore': 'Core only: downloads qb-core + oxmysql + ox_lib. You still need a database and the other qb resources — txAdmin setup does that automatically.',
+  'fivem/qbox': 'Core only: downloads qbx_core + oxmysql + ox_lib. You still need a database — txAdmin setup does that automatically.',
+  'fivem/vanilla': 'Plain FiveM with the default resources (chat, spawn, map manager).',
+  'minecraft/fabric': 'Put Fabric mods (.jar) in the mods folder. Most need the Fabric API mod too.',
+  'minecraft/forge': 'Runs the Forge installer (downloads libraries — takes a minute). Mods go in the mods folder.',
+  'minecraft/neoforge': 'Runs the NeoForge installer (downloads libraries — takes a minute). Mods go in the mods folder.',
+  'minecraft/paper': 'Fast and stable, supports Bukkit/Spigot plugins (plugins folder). Best choice for most servers.',
+  'terraria/tmodloader': 'Modded Terraria. Players need tModLoader (free on Steam) to join.',
+  'discord/discordjs': 'A ready-to-run bot with a !ping command. Paste your bot token into .env, then start it.',
+  'discord/discordpy': 'A ready-to-run bot with a !ping command. Paste your bot token into .env, then start it.',
+};
+let PLATS = null, CRP = null, CRF = null;
+async function loadCreate() {
+  if (!PLATS) { PLATS = await api().platforms(); $('cr-dir').value = PLATS.default_dir; }
+  $('cr-plats').innerHTML = Object.entries(PLATS.platforms).map(([k, p]) => `<div class="plat ${k === CRP ? 'on' : ''}" style="--glowc:${PLAT_GLOW[k]}" onclick="crPick('${k}')">
+    <div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PLAT_ART[k]}</svg></div>
+    <div><b>${esc(p.name)}</b><br><small>${esc(p.tag)}</small></div><span class="fwn">${Object.keys(p.frameworks).length} options</span></div>`).join('');
+  const j = PLATS.java;
+  $('cr-javainfo').textContent = j.length ? `installed: ${[...new Set(j.map(x => 'Java ' + x.major))].join(', ')} — newest Minecraft needs Java 25 (Eclipse Temurin, via winget)` : 'no Java found — it will be installed';
+}
+function crPick(k) {
+  CRP = k; loadCreate();
+  const p = PLATS.platforms[k];
+  $('cr-cfg').classList.remove('hide'); $('cr-title').textContent = `${p.name} · ${p.tag}`;
+  $('cr-mc').classList.toggle('hide', k !== 'minecraft'); $('cr-fivem').classList.toggle('hide', k !== 'fivem');
+  $('cr-fw').innerHTML = Object.entries(p.frameworks).map(([f, label]) => `<button data-f="${f}" onclick="crFw('${f}')">${esc(label)}</button>`).join('');
+  crFw(Object.keys(p.frameworks)[0]);
+  $('cr-cfg').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function crFw(f) {
+  CRF = f;
+  $('cr-fw').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  $('cr-name').value = `${CRP}-${f}`; crPath();
+  $('cr-note').textContent = FW_NOTE[`${CRP}/${f}`] || (CRP === 'steam' ? 'Big download (often several GB) through SteamCMD with an anonymous login. Names/passwords in start.bat are placeholders — edit them.' : '');
+  if (CRP === 'minecraft') {
+    $('cr-ver').innerHTML = '<option value="">loading versions…</option>';
+    const r = await api().mc_versions(f);
+    if (CRF !== f) return;
+    $('cr-ver').innerHTML = r.ok ? r.versions.map((x, i) => `<option value="${esc(x)}">${esc(x)}${i ? '' : '  (newest)'}</option>`).join('') : '<option value="">newest</option>';
+  }
+}
+function crPath() { $('cr-path').textContent = `→ ${v('cr-dir').replace(/\\$/, '')}\\${v('cr-name')}`; }
+$('cr-name').oninput = crPath; $('cr-dir').onchange = $('cr-dir').oninput = crPath;
+function createGo() {
+  if (!CRP || !CRF) return toast('Pick a platform first', true);
+  if (!need('cr-name') || !need('cr-dir')) return;
+  const args = ['create', CRP, CRF, '--dir', v('cr-dir'), '--name', v('cr-name')];
+  if (CRP === 'minecraft') {
+    if (!$('cr-eula').checked && !confirm('You didn\'t accept the Minecraft EULA — the server won\'t start until eula.txt says true.\n\nCreate it anyway?')) return;
+    args.push('--ram', $('cr-ram').value, ...opt(v('cr-ver'), '--version'), ...($('cr-eula').checked ? ['--accept-eula'] : []), ...($('cr-java').checked ? ['--install-java'] : []));
+  }
+  const name = v('cr-name');
+  run(args, code => { if (code) return; toast(`${name} is ready — start it from the Server panel`); SVSEL = name; show('servers'); },
+      CRP === 'fivem' && v('cr-key') ? { MULTIT_FIVEM_KEY: v('cr-key') } : null);
+}
+
+/* ---------- folder vaults ---------- */
+let VAULTS = [];
+async function loadVaults() {
+  VAULTS = await api().vaults();
+  $('va-count').textContent = VAULTS.length ? `${VAULTS.length} vault${VAULTS.length > 1 ? 's' : ''}` : '';
+  $('va-list').innerHTML = VAULTS.map((v, i) => {
+    const locked = v.locked && !v.plain;
+    return `<div class="usb ${locked ? 'locked' : ''}"><div class="top"><div class="dl" style="font-size:18px">${locked ? LOCK_SVG : OPEN_SVG}</div>
+      <div style="min-width:0"><b>${esc(v.name)}</b><small style="word-break:break-all">${esc(v.path)}</small></div></div>
+      <div>${locked ? `<span class="chip on">LOCKED · ${v.locked} files</span>` : v.locked ? `<span class="chip warn">${v.locked} locked · ${v.plain} open</span>` : `<span class="chip">unlocked · ${v.plain} files</span>`}</div>
+      <div class="ops">${v.plain ? `<span class="btn p" onclick="vaultAsk(${i},'lock')">${LOCK_SVG}lock</span>` : ''}
+        ${v.locked ? `<span class="btn ${v.plain ? '' : 'p'}" onclick="vaultAsk(${i},'unlock')">${OPEN_SVG}unlock</span>` : ''}
+        <span class="btn s" onclick="vaultAsk(${i},'passwd')">change password</span><span class="btn s" onclick="api().reveal(VAULTS[${i}].path)">open</span>
+        <span class="btn s" title="remove from this list (files untouched)" onclick="run(['vault','forget',VAULTS[${i}].path], loadVaults)">forget</span></div></div>`;
+  }).join('') || '<div class="empty">no vaults yet — lock a folder to create one</div>';
+}
+function vaultAsk(i, action, path, isVault) {
+  const v = path ? { path, name: path.split('\\').pop(), plain: 1, vault: isVault } : VAULTS[i], fresh = action === 'lock' && !(v.locked || v.vault);
+  openPw({ action, fresh, cmd: ['vault', action, v.path], done: loadVaults, what: v.name,
+    title: { lock: `Lock ${v.name}`, unlock: `Unlock ${v.name}`, passwd: 'Change password' }[action],
+    sub: { lock: fresh ? `Encrypt every file in ${v.path} with a new password.` : 'Encrypt the unlocked files with this vault\'s password.',
+           unlock: 'Decrypt every file back to its original name.', passwd: 'Only the key\'s wrapper changes — instant.' }[action] });
+}
+async function vaultAdd() {
+  const p = await api().pick('folder'); if (!p) return;
+  const c = await api().vault_check(p);
+  if (!c.ok) return toast('That folder is off limits — pick a folder inside it', true);
+  vaultAsk(null, 'lock', p, c.vault);
+}
+
+/* ---------- game booster ---------- */
+let BOOST = null, BSEL = new Set();
+async function loadBoost() {
+  BOOST = await api().boost_info(); BSEL = new Set(BOOST.prefs);
+  const on = !!BOOST.state;
+  $('bo-card').className = 'boostcard' + (on ? ' on' : '');
+  $('bo-card').innerHTML = `<div class="bolt"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m13 2-9 12h8l-1 8 9-12h-8z"/></svg></div>
+    <div><b>${on ? 'BOOST ON' : 'Boost is off'}</b><small>${on ? `High performance plan · closed: ${BOOST.state.closed.map(c => esc(c.name)).join(', ') || 'nothing'}` : 'Pick the apps below, then hit boost.'}</small></div>
+    ${on ? `<label class="tg"><input type="checkbox" id="bo-reopen" checked><i></i><span>reopen closed apps</span></label><span class="btn big" onclick="run(['boost','off', ...($('bo-reopen').checked ? [] : ['--no-reopen'])], loadBoost)">Boost off</span>`
+         : `<span class="btn p big" onclick="boostGo()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m13 2-9 12h8l-1 8 9-12h-8z"/></svg>Boost</span>`}`;
+  drawBoost();
+}
+function drawBoost() {
+  const names = BOOST.candidates.map(c => c.name);
+  [...BSEL].filter(n => !names.includes(n)).forEach(n => names.push(n));  // remembered picks that aren't running right now
+  $('bo-list').innerHTML = names.map(n => { const c = BOOST.candidates.find(x => x.name === n);
+    return `<label class="srow"><span class="tg"><input type="checkbox" ${BSEL.has(n) ? 'checked' : ''} data-n="${esc(n)}" onchange="boostPick(this.dataset.n, this.checked)"><i></i></span>
+      <div class="sn"><b>${esc(n)}</b><small>${c ? `${fmt(c.mem)} RAM${c.pids.length > 1 ? ` · ${c.pids.length} processes` : ''}` : 'not running right now'}</small></div></label>`; }).join('');
+  $('bo-sel').textContent = `${BSEL.size} picked`;
+}
+function boostPick(n, on) { on ? BSEL.add(n) : BSEL.delete(n); api().boost_prefs([...BSEL]); $('bo-sel').textContent = `${BSEL.size} picked`; }
+function boostGo() {
+  const running = [...BSEL].filter(n => BOOST.candidates.some(c => c.name === n));
+  if (running.length && !confirm(`Close ${running.join(', ')}?\n\nUnsaved work in them is lost.`)) return;
+  run(['boost', 'on', '--apps', ...(running.length ? running : ['(none)'])], loadBoost);  // (none): just the power plan
+}
+
+/* ---------- app updates ---------- */
+let UPDS = null;
+async function loadUpdates() {
+  $('up-list').innerHTML = '<div class="empty">asking winget…<span class="spin"></span></div>';
+  UPDS = await api().upgrades(); drawUpdates();
+}
+function drawUpdates() {
+  const q = v('up-q').toLowerCase(), list = UPDS.filter(u => !q || (u.name + u.id).toLowerCase().includes(q));
+  $('up-count').textContent = `${UPDS.length} update${UPDS.length === 1 ? '' : 's'} available`;
+  $('up-list').innerHTML = list.map(u => `<label class="urow"><span class="tg"><input type="checkbox" data-id="${esc(u.id)}"><i></i></span>
+    <div class="un"><b>${esc(u.name)}</b><small>${esc(u.id)}</small></div><span class="uv">${esc(u.version)}</span><i>→</i><span class="ua">${esc(u.available)}</span></label>`).join('')
+    || `<div class="empty">${UPDS.length ? 'nothing matches' : 'everything is up to date 🎉'}</div>`;
+}
+function updSel() {
+  const ids = [...document.querySelectorAll('#up-list input:checked')].map(b => b.dataset.id);
+  if (!ids.length) return toast('Tick the apps to update first', true);
+  run(['update', ...ids], loadUpdates);
+}
+
+/* ---------- backups ---------- */
+$('bk-mode').onclick = e => { if (e.target.dataset.v === undefined) return; $('bk-mode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.target));
+  $('bk-modenote').textContent = e.target.dataset.v === 'mirror' ? 'Mirror: the backup becomes an exact copy — files you delete from the source are deleted from the backup too. Only works on an empty folder or one MultiT made.'
+                                                                  : 'Copy: new and changed files are copied; nothing is ever deleted from the backup.'; };
+async function loadBackups() {
+  const jobs = await api().backups();
+  $('bk-list').innerHTML = jobs.map(j => `<div class="job"><b>${esc(j.name)}</b> <span class="chip">${j.mirror ? 'mirror' : 'copy'}</span> <span class="chip ${j.schedule && j.schedule !== 'off' ? 'on' : ''}">${j.schedule === 'daily' ? 'daily ' + esc(j.at || '') : j.schedule && j.schedule !== 'off' ? j.schedule : 'manual'}</span>
+    <div class="jp">${esc(j.src)}<br>→ ${esc(j.dst)}</div>
+    <small class="tcount">${j.last ? `last run ${new Date(j.last * 1000).toLocaleString()} · ${j.last_ok ? '✓ ok' : '✕ failed'}` : 'never run'}</small>
+    <div class="ops"><span class="btn s p" onclick="run(['backup','run',${esc(JSON.stringify(j.name)).replace(/"/g, '&quot;')}], loadBackups)">run now</span>
+      <span class="btn s" onclick="api().reveal(${esc(JSON.stringify(j.dst)).replace(/"/g, '&quot;')})">open backup</span>
+      <span class="btn s d" onclick="backupRemove(${esc(JSON.stringify(j.name)).replace(/"/g, '&quot;')})">remove</span></div></div>`).join('')
+    || '<div class="empty">no jobs yet</div>';
+}
+async function backupSave() {
+  if (!need('bk-name') || !need('bk-src') || !need('bk-dst')) return;
+  const job = { name: v('bk-name'), src: v('bk-src'), dst: v('bk-dst'), mirror: $('bk-mode').querySelector('.on').dataset.v === 'mirror', schedule: $('bk-sched').value, at: v('bk-at') };
+  const r = await api().backup_save(job);
+  if (!r.ok) return toast(r.error, true);
+  toast(`Saved "${job.name}"` + (job.schedule !== 'off' ? ' — scheduled' : '')); loadBackups();
+}
+async function backupRemove(name) { if (confirm(`Remove backup job "${name}"?\n\nThe backup files stay where they are.`)) { await api().backup_remove(name); loadBackups(); } }
+
+/* ---------- bootable USB ---------- */
+let BOOT = null;
+async function loadBoot() {
+  BOOT = await api().boot_drives();
+  $('bt-ventoy').innerHTML = BOOT.ventoy ? `<h3>Ventoy <span class="r chip on">installed</span></h3><small class="tcount">${esc(BOOT.ventoy)}</small>`
+    : `<h3>Ventoy <span class="r chip">not installed</span></h3><p class="note" style="margin-top:0">Open-source boot loader used to make the stick bootable. Installs once via winget.</p>
+       <span class="btn p" onclick="run(['boot','setup'], loadBoot)">Install Ventoy</span>`;
+  const opts = ISOS.map(i => `<option value="${i.key}">${esc(i.label)}</option>`).join('') + '<option value="__file">ISO file…</option>';
+  $('bt-list').innerHTML = BOOT.drives.map((d, i) => `<div class="usb ${d.ventoy ? 'locked' : ''}"><div class="top"><div class="dl">${d.drive}</div>
+      <div><b>${esc(d.label || 'USB drive')}</b><small>${esc(d.name)} · ${fmt(d.total)}${d.total > 300e9 ? ' · looks like an external hard drive' : ''}</small></div></div>
+      ${d.ventoy ? `<div>${d.isos.map(n => `<div class="isochip">${esc(n)}</div>`).join('') || '<small class="tcount">no ISOs on it yet</small>'}</div>
+        <div class="row"><select id="bt-iso-${i}" style="width:auto;flex:1">${opts}</select><span class="btn p" onclick="bootAdd(${i})">add to stick</span></div>`
+      : `<small class="tcount">Not bootable yet. Making it bootable <b style="color:var(--red)">erases everything on it</b>.</small>
+        <div class="ops"><span class="btn d" onclick="bootInstall(${i})">make bootable…</span></div>`}</div>`).join('')
+    || '<div class="empty">no USB drives connected</div>';
+}
+function bootInstall(i) {
+  const d = BOOT.drives[i];
+  if (!BOOT.ventoy) return toast('Install Ventoy first (button above)', true);
+  const typed = prompt(`ERASE EVERYTHING on ${d.drive} — ${d.label || d.name}, ${fmt(d.total)}, ${fmt(d.total - d.free)} of data?\n\n${d.total > 300e9 ? 'WARNING: this looks like an external HARD DRIVE, not a USB stick.\n\n' : ''}Type the drive letter (${d.drive[0]}) to confirm:`);
+  if ((typed || '').trim().replace(':', '').toUpperCase() !== d.drive[0]) return typed !== null && toast('Letter didn\'t match — nothing was erased', true);
+  run(['boot', 'install', d.drive, '--erase', d.drive], loadBoot);
+}
+async function bootAdd(i) {
+  const d = BOOT.drives[i]; let iso = $('bt-iso-' + i).value;
+  if (iso === '__file') { iso = await api().pick('iso'); if (!iso) return; }
+  run(['boot', 'add', d.drive, iso], loadBoot);
+}
+
+/* ---------- duplicates ---------- */
+let DUPES = [];
+window.dupProgress = (s, p) => { $('du-prog').innerHTML = `<span class="spin"></span> ${esc(s)} <span style="color:var(--dim)">${esc(p)}</span>`; };
+async function dupScan() {
+  if (!need('du-path')) return;
+  $('du-res').innerHTML = ''; $('du-bar').classList.add('hide'); dupProgress('starting…', v('du-path'));
+  const r = await api().dupes(v('du-path'), $('du-min').value);
+  DUPES = r.groups.slice(0, 300);
+  const wasted = r.groups.reduce((s, g) => s + g.wasted, 0);
+  $('du-prog').innerHTML = `${r.files.toLocaleString()} files scanned · <b style="color:var(--lime)">${r.groups.length}</b> duplicate groups · <b style="color:var(--amber)">${fmt(wasted)}</b> wasted` + (r.groups.length > 300 ? ' · showing the 300 biggest' : '');
+  $('du-res').innerHTML = DUPES.map((g, gi) => `<div class="dg"><h4>${fmt(g.size)} × ${g.files.length}<em>${fmt(g.wasted)} wasted</em></h4>` +
+    g.files.map((f, fi) => `<div class="df"><label class="tg"><input type="checkbox" data-g="${gi}" data-f="${fi}" ${fi ? 'checked' : ''} onchange="dupSel()"><i></i></label>
+      <span title="${esc(f.path)}">${esc(f.path)}</span>${fi ? '' : '<b class="keep">OLDEST</b>'}<small>${new Date(f.mtime * 1000).toLocaleDateString()}</small>
+      <span class="btn s" style="flex:none;direction:ltr" onclick="api().reveal(DUPES[${gi}].files[${fi}].path)">show</span></div>`).join('') + '</div>').join('')
+    || '<div class="empty">no duplicates found 🎉</div>';
+  dupSel();
+}
+function dupChecked() { return [...document.querySelectorAll('#du-res input:checked')].map(b => [+b.dataset.g, +b.dataset.f]); }
+function dupSel() {
+  const sel = dupChecked(), size = sel.reduce((s, [g]) => s + DUPES[g].size, 0);
+  $('du-bar').classList.toggle('hide', !sel.length); $('du-sel').textContent = `${sel.length} files selected · ${fmt(size)}`;
+  // never let a whole group be selected: that would delete every copy
+  DUPES.forEach((g, gi) => { const all = g.files.every((_, fi) => sel.some(([a, b]) => a === gi && b === fi)); if (all) toast('Keep at least one copy of each file', true); });
+}
+async function dupRecycle() {
+  const sel = dupChecked();
+  for (const [gi] of sel) if (DUPES[gi].files.every((_, fi) => sel.some(([a, b]) => a === gi && b === fi))) return toast('Every copy of a file is selected — keep at least one', true);
+  const size = sel.reduce((s, [g]) => s + DUPES[g].size, 0);
+  if (!confirm(`Move ${sel.length} duplicate files (${fmt(size)}) to the Recycle Bin?\n\nYou can restore them from there.`)) return;
+  let ok = 0, freed = 0;
+  for (const [gi, fi] of sel) { const r = await api().recycle(DUPES[gi].files[fi].path); if (r.ok) { ok++; freed += DUPES[gi].size; DUPES[gi].files[fi].gone = 1; } }
+  DUPES = DUPES.map(g => ({ ...g, files: g.files.filter(f => !f.gone) })).filter(g => g.files.length > 1);
+  toast(`Recycled ${ok} files · ${fmt(freed)} freed`, ok < sel.length);
+  dupScan();
+}
+
+/* ---------- git repos ---------- */
+async function repoScan(fetch) {
+  if (!need('rp-path')) return;
+  $('rp-list').innerHTML = `<div class="empty">${fetch ? 'fetching & ' : ''}scanning<span class="spin"></span></div>`;
+  const rows = await api().repos(v('rp-path'), fetch);
+  const dirty = rows.filter(r => r.changed).length, behind = rows.filter(r => r.behind).length;
+  $('rp-count').textContent = `${rows.length} repos · ${dirty} with changes · ${behind} behind`;
+  repoScan.rows = rows;
+  $('rp-list').innerHTML = rows.map((r, i) => `<div class="repo ${r.changed ? 'dirty' : ''}"><div><b>${esc(r.name)}</b><div class="rp" title="${esc(r.path)}">${esc(r.path)}</div></div>
+    <div class="chips"><span class="chip on">⎇ ${esc(r.branch)}</span>${r.changed ? `<span class="chip amber">${r.changed} changed</span>` : '<span class="chip">clean</span>'}
+      ${r.ahead === null ? '<span class="chip">no upstream</span>' : `<span class="chip ${r.behind ? 'amber' : ''}">↑${r.ahead} ↓${r.behind}</span>`}</div>
+    <div class="msg" title="${esc(r.msg)}">${esc(r.when)} — ${esc(r.msg)}</div>
+    <div class="ops"><span class="btn s" onclick="api().reveal(repoScan.rows[${i}].path)">folder</span><span class="btn s" onclick="openCode(${i})">VS Code</span>
+      ${r.behind && !r.changed ? `<span class="btn s p" onclick="run(['repos', repoScan.rows[${i}].path, '--pull'], () => repoScan(false))">pull</span>` : ''}</div></div>`).join('')
+    || '<div class="empty">no git repos under this folder</div>';
+}
+async function openCode(i) { if (!await api().code(repoScan.rows[i].path)) toast('VS Code not found — install it from Toolchains', true); }
+
+/* ---------- PATH doctor ---------- */
+async function loadPath() {
+  const es = await api().path_entries();
+  const row = e => `<div class="pe"><span class="chip ${e.dead ? 'bad' : e.dup ? 'warn' : 'on'}">${e.dead ? 'dead' : e.dup ? 'dup' : 'ok'}</span><span>${esc(e.raw)}</span>` +
+    (e.scope === 'user' ? `<b class="x" title="remove from user PATH" onclick="pdRemove(${JSON.stringify(e.raw).replace(/"/g, '&quot;')})">✕</b>` : '') + '</div>';
+  $('pd-user').innerHTML = es.filter(e => e.scope === 'user').map(row).join('') || '<div class="empty">empty</div>';
+  $('pd-sys').innerHTML = es.filter(e => e.scope === 'system').map(row).join('');
+  const bad = es.filter(e => e.scope === 'user' && (e.dead || e.dup)).length;
+  $('pd-count').textContent = `${es.length} entries · ${es.filter(e => e.dead).length} dead · ${es.filter(e => e.dup).length} duplicate`;
+  $('pd-fix').textContent = bad ? `Clean user PATH (${bad})` : 'User PATH is clean';
+}
+async function pdChange(args, what) {
+  const r = await api().path_change(...args);
+  if (!r.ok) return toast(r.error, true);
+  toast(`${what} — open a new terminal to use it. Backup saved.`); loadPath();
+}
+function pdFix() { if (confirm('Remove dead & duplicate entries from your user PATH?\n\nThe current PATH is backed up first.')) pdChange([true, null, null], 'PATH cleaned'); }
+async function pdAdd() { const p = await api().pick('folder'); if (p) pdChange([false, p, null], 'Folder added'); }
+function pdRemove(raw) { if (confirm(`Remove from your user PATH?\n\n${raw}`)) pdChange([false, null, raw], 'Entry removed'); }
+
+/* ---------- dev toolbox ---------- */
+function genPw() {
+  const n = +$('pw-len').value; $('pw-lenv').textContent = n;
+  let cs = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'; if ($('pw-num').checked) cs += '23456789'; if ($('pw-sym').checked) cs += '!@#$%^&*-_=+?';
+  const r = crypto.getRandomValues(new Uint32Array(n));
+  $('pw-out').textContent = [...r].map(x => cs[x % cs.length]).join('');
+  $('pw-bits').textContent = `~${Math.floor(n * Math.log2(cs.length))} bits`;
+}
+function genUuid(n) { $('uu-out').textContent = Array.from({ length: n }, () => crypto.randomUUID()).join('\n'); }
+function b64(enc) {
+  const s = $('b64-in').value, o = $('b64-out'); o.classList.remove('err');
+  try {
+    if (enc) { let bin = ''; new TextEncoder().encode(s).forEach(b => bin += String.fromCharCode(b)); o.textContent = btoa(bin); }
+    else { const t = s.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/'), bin = atob(t + '='.repeat((4 - t.length % 4) % 4)); o.textContent = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))); }
+  } catch (e) { o.classList.add('err'); o.textContent = 'not valid base64'; }
+}
+function fmtJson(ind) { const o = $('js-out'); o.classList.remove('err'); try { o.textContent = JSON.stringify(JSON.parse($('js-in').value), null, ind || undefined); } catch (e) { o.classList.add('err'); o.textContent = e.message; } }
+function decJwt() {
+  const o = $('jwt-out'), parts = $('jwt-in').value.trim().split('.'); o.classList.remove('err');
+  if (!parts[0]) return o.textContent = '';
+  try {
+    const dec = p => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(p.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - p.length % 4) % 4)), c => c.charCodeAt(0))));
+    const h = dec(parts[0]), b = dec(parts[1] || 'e30'), when = k => b[k] ? `\n${k}: ${new Date(b[k] * 1000).toLocaleString()}${k === 'exp' ? (b.exp * 1000 < Date.now() ? '  (EXPIRED)' : '  (valid)') : ''}` : '';
+    o.textContent = `header ${JSON.stringify(h, null, 2)}\n\npayload ${JSON.stringify(b, null, 2)}\n${when('iat')}${when('exp')}\n\n(signature not verified)`;
+  } catch (e) { o.classList.add('err'); o.textContent = 'not a valid JWT'; }
+}
+function convTs() {
+  const s = v('ts-in'), o = $('ts-out'); if (!s) return o.textContent = '';
+  const d = /^\d+(\.\d+)?$/.test(s) ? new Date(+s * (+s > 1e12 ? 1 : 1000)) : new Date(s);
+  o.textContent = isNaN(d) ? 'not a date' : `unix   ${Math.floor(d / 1000)}\nms     ${+d}\nlocal  ${d.toLocaleString()}\nISO    ${d.toISOString()}`;
+}
+setInterval(() => { if (onPage('toolbox')) $('ts-now').textContent = `now  ${Math.floor(Date.now() / 1000)}   ${new Date().toISOString()}`; }, 1000);
+async function hashText() {
+  const data = new TextEncoder().encode($('ht-in').value), hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  const rows = await Promise.all(['SHA-1', 'SHA-256', 'SHA-512'].map(async a => `${a.padEnd(8)} ${hex(await crypto.subtle.digest(a, data))}`));
+  $('ht-out').textContent = $('ht-in').value ? rows.join('\n') : '';
+}
+function urlc(enc) { const o = $('url-out'); o.classList.remove('err'); try { o.textContent = enc ? encodeURIComponent($('url-in').value) : decodeURIComponent($('url-in').value); } catch (e) { o.classList.add('err'); o.textContent = e.message; } }
+function testRx() {
+  const o = $('rx-out'); o.classList.remove('err');
+  if (!v('rx-p')) return o.textContent = '';
+  try {
+    const flags = v('rx-f').includes('g') ? v('rx-f') : v('rx-f') + 'g', re = new RegExp(v('rx-p'), flags), t = $('rx-t').value;
+    const ms = [...t.matchAll(re)]; let html = '', at = 0;
+    for (const m of ms) { if (!m[0]) continue; html += esc(t.slice(at, m.index)) + `<mark>${esc(m[0])}</mark>`; at = m.index + m[0].length; }
+    html += esc(t.slice(at));
+    const groups = ms[0] && ms[0].length > 1 ? '\n\ngroups of 1st match: ' + ms[0].slice(1).map((g, i) => `$${i + 1}=${JSON.stringify(g)}`).join('  ') : '';
+    o.innerHTML = `<b style="color:var(--lime)">${ms.length} match${ms.length === 1 ? '' : 'es'}</b>\n\n${html}${esc(groups)}`;
+  } catch (e) { o.classList.add('err'); o.textContent = e.message; }
+}
+genPw(); genUuid(1);
+
+/* ---------- tools ---------- */
+let TOOLS = [], TCAT = 'All';
+const SEL = new Set();
+const PACKS = {
+  'Python': ['python', 'uv', 'pyinstaller', 'vscode', 'git'],
+  'Web': ['node', 'pnpm', 'bun', 'vscode', 'git', 'gh', 'postman', 'docker'],
+  'C / C++': ['gcc', 'clang', 'cmake', 'ninja', 'make', 'vsbuildtools', 'vscode'],
+  'Java / Android': ['java', 'maven', 'gradle', 'kotlin', 'intellij', 'androidstudio'],
+  'DevOps': ['docker', 'kubectl', 'helm', 'minikube', 'terraform', 'aws', 'azure', 'gcloud'],
+  'Data': ['python', 'r', 'julia', 'postgres', 'sqlite', 'dbeaver'],
+  'Terminal': ['wt', 'pwsh', 'ohmyposh', 'ripgrep', 'fzf', 'bat', 'fd', 'jq', 'lazygit'],
+};
+$('t-st').onclick = e => { if (e.target.dataset.v === undefined) return; $('t-st').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.target)); drawTools(); };
+$('t-packs').innerHTML = Object.keys(PACKS).map(p => `<button class="chip" onclick="pickPack('${p}')">+ ${p}</button>`).join('');
+addEventListener('keydown', e => { if (e.key === '/' && $('p-tools').classList.contains('on') && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('t-q').focus(); } });
+
+async function loadTools() {
+  TOOLS = await api().tools();
+  const t = Object.fromEntries(TOOLS.map(x => [x.key, x]));
+  [...SEL].forEach(k => t[k]?.ok && SEL.delete(k));  // just installed -> unselect
+  drawTools();
+  $('hv').innerHTML = ['virtualbox', 'vmware'].map(k => `<div class="vm"><span class="dot ${t[k].ok ? 'on' : ''}"></span><div class="n"><b>${t[k].name}</b><small>${t[k].ok ? 'installed' : 'not installed'}</small></div>
+    ${t[k].ok ? '' : `<span class="btn s" onclick="run(['install','${k}'], loadTools)">install</span>`}</div>`).join('');
+  $('sf-tools').innerHTML = `<div><span>dev tools</span><span style="color:var(--lime)">${TOOLS.filter(x => x.ok).length}/${TOOLS.length}</span></div>
+    <div><span>hypervisor</span><span style="color:var(--lime)">${t.vmware.ok ? 'VMware' : t.virtualbox.ok ? 'VirtualBox' : '—'}</span></div>`;
+}
+function drawTools() {
+  const q = v('t-q').toLowerCase(), st = $('t-st').querySelector('.on').dataset.v;
+  const cats = ['All', ...new Set(TOOLS.map(x => x.cat))];
+  $('t-cats').innerHTML = cats.map(c => `<button class="chip ${c === TCAT ? 'on' : ''}" onclick="TCAT='${c}';drawTools()">${c}</button>`).join('');
+  const hit = x => !q || (x.name + ' ' + x.key + ' ' + x.cat).toLowerCase().includes(q);
+  const list = TOOLS.filter(x => hit(x) && (TCAT === 'All' || x.cat === TCAT) && (st === 'all' || (st === 'ok') === x.ok));
+  const mark = s => q ? esc(s).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), m => `<mark>${m}</mark>`) : esc(s);
+  const card = x => `<div class="tool ${x.ok ? 'ok' : ''} ${SEL.has(x.key) ? 'sel' : ''}" ${x.ok || !x.src ? '' : `onclick="toggleTool('${x.key}')"`}>
+      <span class="st">${x.ok ? '✓' : SEL.has(x.key) ? '+' : ''}</span>
+      <div class="tn"><b title="${esc(x.name)}">${mark(x.name)}</b><small>${x.ok ? 'installed' : x.src.startsWith('http') ? 'download page ↗' : x.src ? 'winget' : ''}</small></div>
+      ${x.ok && x.src && !x.src.startsWith('http') ? `<span class="btn s" title="update via winget" onclick="event.stopPropagation(); run(['install','${x.key}','--update'], loadTools)">update</span>` : ''}</div>`;
+  const groups = [...new Set(list.map(x => x.cat))];
+  $('tools').innerHTML = groups.length ? groups.map(g => `<div class="jg" style="margin-top:18px">${g}</div><div class="tools">${list.filter(x => x.cat === g).map(card).join('')}</div>`).join('')
+    : '<div class="empty">no tools match</div>';
+  $('t-count').textContent = `${list.length} shown · ${TOOLS.filter(x => x.ok).length}/${TOOLS.length} installed`;
+  $('selbar').classList.toggle('hide', !SEL.size);
+  $('sel-n').textContent = `${SEL.size} selected — ` + [...SEL].map(k => TOOLS.find(x => x.key === k).name).join(', ');
+}
+function toggleTool(k) { SEL.has(k) ? SEL.delete(k) : SEL.add(k); drawTools(); }
+function pickPack(p) {
+  const missing = PACKS[p].filter(k => { const x = TOOLS.find(t => t.key === k); return x && !x.ok && x.src; });
+  missing.forEach(k => SEL.add(k)); drawTools();
+  toast(missing.length ? `${p} pack: selected ${missing.length} missing tool${missing.length > 1 ? 's' : ''}` : `${p} pack: you already have everything`);
+}
+function installSel() {
+  const keys = [...SEL];
+  const pages = keys.filter(k => TOOLS.find(x => x.key === k).src.startsWith('http')).length;
+  if (!confirm(`Install ${keys.length} tool(s) via winget?\n\n${keys.map(k => '• ' + TOOLS.find(x => x.key === k).name).join('\n')}` +
+               (pages ? `\n\n${pages} of them aren't on winget — their download page opens instead.` : '') + '\n\nWindows may ask for admin permission.')) return;
+  run(['install', ...keys], loadTools);
+}
+
+/* ---------- boot ---------- */
+async function init() {
+  if (init.done) return; init.done = true;
+  clearOut();
+  const m = await api().meta();
+  ISOS = m.isos; $('isodir').textContent = m.iso_dir; drawIsos(); HOME = m.home;
+  $('vm-os').innerHTML = ISOS.map(i => `<option value="${i.key}">${esc(i.label)}</option>`).join('') + '<option value="__custom">Custom ISO file…</option>';
+  osChanged();
+  let p = 'home'; try { p = localStorage.getItem('multit.page') || p; } catch (e) {}
+  if ($('p-' + location.hash.slice(1))) p = location.hash.slice(1);  // deep link: ui.html#viz
+  show(p); loadTools(); loadDisks();
+}
+addEventListener('pywebviewready', init);
+setTimeout(() => {  // opened in a normal browser (design preview): fake backend
+  if (window.pywebview) return init();
+  const isos = [['ubuntu', 'Ubuntu Desktop LTS'], ['debian', 'Debian (netinst)'], ['fedora', 'Fedora Workstation'], ['kali', 'Kali Linux'], ['arch', 'Arch Linux'], ['windows11', 'Windows 11 Enterprise (90-day eval)'], ['proxmox', 'Proxmox VE'], ['alpine', 'Alpine Linux']];
+  window.pywebview = { api: {
+    meta: async () => ({ isos: isos.map(([key, label]) => ({ key, label })), iso_dir: 'C:\\Users\\you\\Downloads\\ISOs', home: 'C:\\Users\\you' }),
+    tools: async () => [['python', 'Python', 'Languages', 'w', 1], ['node', 'Node.js LTS', 'Languages', 'w', 1], ['go', 'Go', 'Languages', 'w', 0], ['rust', 'Rust (rustup)', 'Languages', 'w', 0],
+      ['kotlin', 'Kotlin', 'Languages', 'https://x', 0], ['uv', 'uv (fast pip/venv)', 'Python', 'w', 1], ['cmake', 'CMake', 'Build', 'w', 0], ['vscode', 'VS Code', 'Editors', 'w', 1],
+      ['git', 'Git', 'Git', 'w', 1], ['gh', 'GitHub CLI', 'Git', 'w', 0], ['docker', 'Docker Desktop', 'Containers & VMs', 'w', 0], ['virtualbox', 'VirtualBox', 'Containers & VMs', 'w', 0],
+      ['vmware', 'VMware Workstation', 'Containers & VMs', 'https://x', 1], ['ripgrep', 'ripgrep (rg)', 'Terminal & CLI', 'w', 0], ['winget', 'winget', 'Utilities', '', 1]]
+      .map(([key, name, cat, src, ok]) => ({ key, name, cat, src, ok: !!ok })),
+    vms: async () => [{ name: 'win 10', provider: 'VMware', running: true }, { name: 'ubuntu', provider: 'VMware', running: false }],
+    detect: async () => ({ lang: 'python', root: 'C:\\code\\app', entry: 'C:\\code\\app\\main.py' }),
+    stats: async () => { const c = Array.from({ length: 16 }, () => Math.random() * 60); return { t: Date.now() / 1000, cpu: c.reduce((a, b) => a + b) / 16, cores: c, ram: 40 + Math.random() * 5,
+      ram_used: 12.7e9, ram_total: 31.9e9, disk_r: Date.now() * 900, disk_w: Date.now() * 300, net_rx: Date.now() * 2000, net_tx: Date.now() * 200, uptime: 8300 }; },
+    procs: async () => [['steamwebhelper.exe', 7, 6.2, 1.1e9], ['AvastBrowser.exe', 17, 2.9, 1.6e9], ['dwm.exe', 1, 1.3, 1.3e8, 1]].map(([name, n, cpu, mem, critical]) => ({ name, pids: Array(n).fill(1), cpu, mem, critical: !!critical })),
+    kill: async () => ({ ok: true, n: 1 }), set_startup: async () => ({ ok: true }), code: async () => true, path_change: async () => ({ ok: true }),
+    startup: async () => [['Discord', 'C:\\Users\\you\\AppData\\Local\\Discord\\Update.exe --processStart Discord.exe', 'registry · you', 0, 0], ['Steam', '"C:\\Program Files (x86)\\Steam\\steam.exe" -silent', 'registry · you', 1, 0], ['SecurityHealth', '%windir%\\system32\\SecurityHealthSystray.exe', 'registry · all users', 1, 1]]
+      .map(([name, cmd, where, en, ad], i) => ({ id: 'x|y|' + i, name, cmd, where, enabled: !!en, admin: !!ad })),
+    path_entries: async () => [['system', 'C:\\WINDOWS\\system32'], ['system', 'C:\\Program Files\\Git\\cmd'], ['user', 'C:\\WINDOWS\\system32', 0, 1], ['user', 'C:\\Users\\you\\AppData\\Local\\Programs\\Ollama', 1], ['user', 'C:\\Users\\you\\.cargo\\bin']]
+      .map(([scope, raw, dead, dup]) => ({ scope, raw, dead: !!dead, dup: !!dup })),
+    repos: async () => [{ name: 'multit', path: 'C:\\code\\multit', branch: 'main', changed: 3, ahead: 1, behind: 0, when: '2 hours ago', msg: 'add disk map' }, { name: 'nexa', path: 'C:\\code\\nexa', branch: 'dev', changed: 0, ahead: 0, behind: 4, when: '3 days ago', msg: 'fix video timing' }],
+    dupes: async () => ({ files: 12034, groups: [{ size: 4.6e9, wasted: 4.6e9, files: [{ path: 'C:\\Users\\you\\Downloads\\Win10.iso', mtime: 1.75e9 }, { path: 'D:\\backup\\Win10 (1).iso', mtime: 1.76e9 }] }] }),
+    pick: async () => 'C:\\code\\app', open: async () => {}, stop: async () => {}, elevate: async () => {}, reveal: async () => {}, recycle: async () => ({ ok: true }),
+    viz: async root => { let seed = 7; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647, ts = Object.keys(TC);
+      const mk = (d, name) => d > 3 || rnd() < .25 ? { n: name + '.' + ts[d], s: Math.floor(rnd() ** 3 * 5e9) + 1e6, t: ts[Math.floor(rnd() * ts.length)] }
+        : (c => ({ n: name, s: c.reduce((a, b) => a + b.s, 0), c: c.sort((a, b) => b.s - a.s) }))(Array.from({ length: 3 + Math.floor(rnd() * 9) }, (_, i) => mk(d + 1, name + i)));
+      const tree = mk(0, root); return { root, tree, files: 48213, used: tree.s * 1.6 }; },
+    disks: async () => [{ drive: 'C:', total: 512e9, free: 153e9 }, { drive: 'D:', total: 1e12, free: 60e9 }],
+    scan: async () => ({ admin: false, items: [['temp', 'Temporary files', 'System', 1, 0, 8e8], ['update', 'Windows Update downloads', 'System', 1, 1, 6.3e9],
+      ['recycle', 'Recycle Bin', 'System', 0, 0, 1.4e10], ['browsers', 'Browser caches', 'Apps', 1, 0, 1.3e9], ['pip', 'pip cache', 'Dev', 1, 0, 9.7e8]]
+      .map(([key, label, group, d, a, size]) => ({ key, label, group, default: !!d, admin: !!a, size })) }),
+    run: async () => { let i = 0; const L = ['> python -m PyInstaller --onefile main.py\n', 'building…\n', '\r  41%', '\r  100%\n', 'OK  C:\\code\\app\\dist\\app.exe  (7.2 MB)\n'];
+      const iv = setInterval(() => i < L.length ? term.write(L[i++]) : (clearInterval(iv), term.exit(0)), 350); return 'ok'; },
+  } };
+  init();
+}, 700);
+</script>
+</body>
+</html>
